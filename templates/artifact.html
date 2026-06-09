@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}{{ artifact.title }} · Artifact Viewer{% endblock %}
+{% block content %}
+<section class="artifact-hero panel">
+  <div class="artifact-meta-row">
+    <span class="pill">{{ artifact.kind }}</span>
+    <span class="pill muted">ID {{ artifact.id }}</span>
+    <span class="pill muted">Expires {{ artifact.expires_at.strftime('%Y-%m-%d %H:%M UTC') }}</span>
+  </div>
+  <h1>{{ artifact.title }}</h1>
+  <p class="hero-copy">This page is intentionally temporary and optimized for inspection, not for chat-style dumping.</p>
+  <div class="artifact-links">
+    <a href="/a/{{ artifact.id }}/raw">Raw JSON</a>
+    <a href="{{ base_url }}/a/{{ artifact.id }}">Canonical link</a>
+  </div>
+</section>
+
+<section class="panel artifact-surface">
+  {% if rendered.body_kind == 'preformatted' %}
+    {{ rendered.body_html | safe }}
+  {% elif rendered.body_kind == 'rich' %}
+    {{ rendered.body_html | safe }}
+  {% elif rendered.body_kind == 'image' %}
+    {{ rendered.body_html | safe }}
+  {% endif %}
+</section>
+
+<section class="panel footer-grid">
+  <div>
+    <h2>Source metadata</h2>
+    <dl class="meta-list">
+      <div><dt>Created</dt><dd>{{ artifact.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd></div>
+      <div><dt>Expires</dt><dd>{{ artifact.expires_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd></div>
+      <div><dt>Type</dt><dd>{{ artifact.kind }}</dd></div>
+    </dl>
+  </div>
+  <div>
+    <h2>Share</h2>
+    <p class="subtle">Use the canonical URL above. When it expires, the page is removed.</p>
+  </div>
+</section>
+{% endblock %}

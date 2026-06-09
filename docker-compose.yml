@@ -1,0 +1,13 @@
+services:
+  artifact-viewer:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      ARTIFACT_DB_PATH: /data/artifacts.db
+      DEFAULT_TTL_MINUTES: "60"
+      MAX_TTL_MINUTES: "10080"
+      CLEANUP_INTERVAL_SECONDS: "30"
+    volumes:
+      - ./data:/data
+    restart: unless-stopped

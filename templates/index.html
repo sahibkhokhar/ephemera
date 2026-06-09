@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Artifact Viewer · Clean temporary pages{% endblock %}
+{% block content %}
+<section class="hero-card">
+  <div class="eyebrow">Self-hosted · Ephemeral · Agent-friendly</div>
+  <h1>Turn messy data into a clean temporary page.</h1>
+  <p class="hero-copy">POST a payload, get a temporary LAN link back, and open a purpose-built view for logs, JSON, markdown, images, or a safe report page.</p>
+  <div class="hero-actions">
+    <a class="button primary" href="#usage">See API usage</a>
+    <a class="button secondary" href="/demo">Open demo page</a>
+  </div>
+</section>
+
+<section class="panel-grid" id="usage">
+  <article class="panel">
+    <h2>API shape</h2>
+    <pre class="code-sample">POST /api/artifacts
+{
+  "title": "Log excerpt",
+  "kind": "log",
+  "ttl_minutes": 30,
+  "content": "..."
+}</pre>
+    <p>Response includes the artifact id, expiry timestamp, and a temporary URL such as <code>{{ base_url }}/a/...</code>.</p>
+  </article>
+  <article class="panel">
+    <h2>What it is good at</h2>
+    <ul class="bullet-list">
+      <li>Large logs with context</li>
+      <li>JSON and nested structures</li>
+      <li>Markdown writeups and summaries</li>
+      <li>Images and image notes</li>
+      <li>Short-lived reports for quick review</li>
+    </ul>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="section-head">
+    <h2>Recent artifacts</h2>
+    <span class="subtle">Auto-pruned when expired</span>
+  </div>
+  {% if recent %}
+  <div class="recent-list">
+    {% for item in recent %}
+    <a class="recent-item" href="/a/{{ item.id }}">
+      <div>
+        <strong>{{ item.title }}</strong>
+        <span>{{ item.kind }} · {{ item.id }}</span>
+      </div>
+      <time datetime="{{ item.expires_at.isoformat() }}">expires {{ item.expires_at.strftime('%Y-%m-%d %H:%M UTC') }}</time>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty-state">No artifacts yet. Create one via the API or open the demo.</p>
+  {% endif %}
+</section>
+{% endblock %}
