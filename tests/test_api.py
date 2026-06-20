@@ -283,13 +283,21 @@ def test_index_lists_recent(client: TestClient):
 
 
 def test_artifact_page_offers_copy_exports(client: TestClient):
+    # Markdown/report: no Copy JSON / Copy MD header buttons (rich-content cleanup)
     artifact_id = create(client, kind="markdown", content="# Demo\n\nbody").json()["id"]
     view = client.get(f"/a/{artifact_id}")
     assert view.status_code == 200
-    assert "Copy JSON" in view.text
-    assert "Copy MD" in view.text
+    assert "Copy JSON" not in view.text
+    assert "Copy MD" not in view.text
+    # Hidden copy-source textareas are still embedded for JS use
     assert "data-format=\"json\"" in view.text
     assert "data-format=\"markdown\"" in view.text
+
+    # Non-rich kinds (e.g. json) still show the header copy buttons
+    json_id = create(client, kind="json", content='{"x":1}').json()["id"]
+    json_view = client.get(f"/a/{json_id}")
+    assert json_view.status_code == 200
+    assert "Copy JSON" in json_view.text
 
 
 def _copy_source(html: str, fmt: str) -> str:

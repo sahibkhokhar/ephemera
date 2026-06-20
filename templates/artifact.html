@@ -9,7 +9,7 @@
       <span class="meta-dot">{{ artifact.id }}</span>
     </div>
     <h1>{{ artifact.title }}</h1>
-    {% set download_label = 'Download JSON' if artifact.kind == 'json' else 'Download .md' if artifact.kind == 'markdown' else 'Download' %}
+    {% set download_label = 'Download JSON' if artifact.kind == 'json' else 'Download .md' if artifact.kind in ('markdown', 'report') else 'Download' %}
     <div class="artifact-actions" role="group" aria-label="Artifact actions">
       <div class="action-group">
         <button class="btn btn-primary btn-sm" type="button" data-copy data-copy-text="{{ canonical_url }}">Copy link</button>
@@ -39,11 +39,13 @@
       {% endif %}
       </div>
 
+      {% if artifact.kind not in ('markdown', 'report') %}
       <div class="action-group">
         <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="json">Copy JSON</button>
         <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="markdown">Copy MD</button>
         <a class="btn btn-ghost btn-sm" href="/a/{{ artifact.id }}/raw">Raw JSON</a>
       </div>
+      {% endif %}
     </div>
   </header>
 
@@ -76,9 +78,6 @@
   <div class="view-tabs" data-view-tabs>
     <button class="view-tab is-active" type="button" data-tab="rendered">Preview</button>
     <button class="view-tab" type="button" data-tab="source">Code</button>
-    {% if artifact.kind == 'markdown' %}
-    <button class="view-tab view-tab-action" type="button" data-copy data-copy-format="source">Copy source</button>
-    {% endif %}
   </div>
   <section class="surface prose {{ 'report' if rendered.language == 'report' else 'markdown' }}" data-view="rendered">
     {{ rendered.html | safe }}
