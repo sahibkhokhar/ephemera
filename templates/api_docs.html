@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% block title %}{{ app_name }} · API docs{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>API reference</h1>
+  <p class="lede">
+    {{ app_name }} is a small JSON+HTTP service. POST a payload, get back a
+    short-lived link. Everything below works over a LAN with no external
+    network access — including this page.
+  </p>
+  <div class="hero-actions">
+    <a class="btn btn-ghost" href="/api/openapi.json">OpenAPI schema (JSON)</a>
+    <a class="btn btn-ghost" href="#endpoints">Jump to endpoints</a>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Base URL &amp; auth</h2>
+  <p class="muted">All paths are relative to this instance's base URL.</p>
+  <div class="code-view">
+    <div class="code-toolbar"><span class="code-lang">text</span></div>
+    <pre class="code-body"><code>{{ base_url }}</code></pre>
+  </div>
+  {% if auth_required %}
+  <p class="note">This instance requires an API key for writes. Send it as an
+    <code>x-api-key: &lt;key&gt;</code> header, or as <code>Authorization: Bearer &lt;key&gt;</code>.
+    Read endpoints (viewing artifacts) are public.</p>
+  {% else %}
+  <p class="note">This instance is open: no API key is required. Reads and writes are both public.</p>
+  {% endif %}
+</section>
+
+<section id="endpoints">
+  <div class="section-head">
+    <h2>Endpoints</h2>
+    <span class="muted">JSON in, JSON out unless noted</span>
+  </div>
+  <div class="surface prose">
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>POST</code></td><td><code>/api/artifacts</code></td><td>Create an artifact{% if auth_required %} (auth required){% endif %}. Returns its canonical URL.</td></tr>
+        <tr><td><code>GET</code></td><td><code>/api/artifacts/{id}</code></td><td>Fetch an artifact's full detail as JSON.</td></tr>
+        <tr><td><code>GET</code></td><td><code>/a/{id}/raw</code></td><td>Same JSON detail, mirrored under the share path.</td></tr>
+        <tr><td><code>GET</code></td><td><code>/a/{id}/download</code></td><td>Download the artifact as a file (source for text/log/markdown, bare JSON, sanitized report HTML, decoded image bytes). Remote image URLs redirect to the source rather than being proxied.</td></tr>
+        <tr><td><code>GET</code></td><td><code>/a/{id}</code></td><td>Human-readable HTML view of an artifact.</td></tr>
+        <tr><td><code>GET</code></td><td><code>/healthz</code></td><td>Liveness probe; returns <code>{"status":"ok"}</code>.</td></tr>
+        <tr><td><code>GET</code></td><td><code>/api/openapi.json</code></td><td>Machine-readable <a href="/api/openapi.json">OpenAPI schema</a>.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="grid-2">
+  <article class="card">
+    <h2>Create an artifact</h2>
+    <p class="muted"><code>POST /api/artifacts</code></p>
+    <div class="code-view" data-copy-root>
+      <div class="code-toolbar">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" type="button" data-copy>Copy</button>
+      </div>
+      <pre class="code-body"><code>curl -s {{ base_url }}/api/artifacts \
+  -H 'content-type: application/json' \{% if auth_required %}
+  -H 'x-api-key: $API_KEY' \{% endif %}
+  -d '{
+    "title": "Nightly job log",
+    "kind": "log",
+    "ttl_minutes": 120,
+    "content": "..."
+  }'</code></pre>
+      <textarea class="copy-source" hidden>curl -s {{ base_url }}/api/artifacts -H 'content-type: application/json'{% if auth_required %} -H 'x-api-key: $API_KEY'{% endif %} -d '{"title":"Nightly job log","kind":"log","ttl_minutes":120,"content":"..."}'</textarea>
+    </div>
+  </article>
+
+  <article class="card">
+    <h2>201 Created</h2>
+    <p class="muted">Hand the <code>url</code> straight to a human.</p>
+    <div class="code-view">
+      <div class="code-toolbar"><span class="code-lang">json</span></div>
+      <pre class="code-body"><code>{
+  "id": "9f2c1a7b3e4d",
+  "kind": "log",
+  "title": "Nightly job log",
+  "created_at": "…Z",
+  "expires_at": "…Z",
+  "url": "{{ base_url }}/a/9f2c1a7b3e4d"
+}</code></pre>
+    </div>
+  </article>
+</section>
+
+<section class="card">
+  <h2>Request fields</h2>
+  <div class="surface prose">
+    <table>
+      <thead>
+        <tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>kind</code></td><td>string</td><td>yes</td><td>One of {% for k in kinds %}<code>{{ k }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.</td></tr>
+        <tr><td><code>content</code></td><td>any</td><td>yes</td><td>Shape depends on <code>kind</code> — text/log/markdown are strings, json is an object or JSON string, image is a URL string or <code>{src, alt?, caption?}</code>, report is HTML (sanitized on render).</td></tr>
+        <tr><td><code>title</code></td><td>string</td><td>no</td><td>1–160 chars. Defaults to <code>"Untitled artifact"</code>.</td></tr>
+        <tr><td><code>ttl_minutes</code></td><td>integer</td><td>no</td><td>Defaults to {{ default_ttl_minutes }}; capped at {{ max_ttl_minutes }}.</td></tr>
+        <tr><td><code>metadata</code></td><td>object</td><td>no</td><td>Free-form key/value map stored alongside the artifact.</td></tr>
+      </tbody>
+    </table>
+    <p>Max content size is {{ max_content_bytes }}. Errors come back as JSON:
+      <code>{"error": "...", "status": 4xx}</code>.</p>
+  </div>
+</section>
+
+<section class="grid-2">
+  <article class="card">
+    <h2>Fetch detail</h2>
+    <p class="muted"><code>GET /api/artifacts/{id}</code></p>
+    <div class="code-view">
+      <div class="code-toolbar"><span class="code-lang">json</span></div>
+      <pre class="code-body"><code>{
+  "id": "9f2c1a7b3e4d",
+  "kind": "log",
+  "title": "Nightly job log",
+  "created_at": "…Z",
+  "expires_at": "…Z",
+  "url": "{{ base_url }}/a/9f2c1a7b3e4d",
+  "content": "...",
+  "metadata": {}
+}</code></pre>
+    </div>
+  </article>
+
+  <article class="card">
+    <h2>Health check</h2>
+    <p class="muted"><code>GET /healthz</code></p>
+    <div class="code-view">
+      <div class="code-toolbar"><span class="code-lang">json</span></div>
+      <pre class="code-body"><code>{
+  "status": "ok",
+  "time": "…Z"
+}</code></pre>
+    </div>
+  </article>
+</section>
+{% endblock %}

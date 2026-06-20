@@ -1,42 +1,103 @@
 {% extends 'base.html' %}
-{% block title %}{{ artifact.title }} · Artifact Viewer{% endblock %}
+{% block title %}{{ artifact.title }} · {{ app_name }}{% endblock %}
 {% block content %}
-<section class="artifact-hero panel">
-  <div class="artifact-meta-row">
-    <span class="pill">{{ artifact.kind }}</span>
-    <span class="pill muted">ID {{ artifact.id }}</span>
-    <span class="pill muted">Expires {{ artifact.expires_at.strftime('%Y-%m-%d %H:%M UTC') }}</span>
-  </div>
-  <h1>{{ artifact.title }}</h1>
-  <p class="hero-copy">This page is intentionally temporary and optimized for inspection, not for chat-style dumping.</p>
-  <div class="artifact-links">
-    <a href="/a/{{ artifact.id }}/raw">Raw JSON</a>
-    <a href="{{ base_url }}/a/{{ artifact.id }}">Canonical link</a>
-  </div>
-</section>
+<article class="artifact" data-copy-root>
+  <header class="artifact-head">
+    <div class="artifact-tags">
+      <span class="recent-kind" data-kind="{{ artifact.kind }}">{{ artifact.kind | kindlabel }}</span>
+      <span class="meta-dot">expires in {{ artifact.expires_at | remaining }}</span>
+      <span class="meta-dot">{{ artifact.id }}</span>
+    </div>
+    <h1>{{ artifact.title }}</h1>
+    {% set download_label = 'Download JSON' if artifact.kind == 'json' else 'Download .md' if artifact.kind == 'markdown' else 'Download' %}
+    <div class="artifact-actions" role="group" aria-label="Artifact actions">
+      <div class="action-group">
+        <button class="btn btn-primary btn-sm" type="button" data-copy data-copy-text="{{ canonical_url }}">Copy link</button>
+        <a class="btn btn-ghost btn-sm" href="/a/{{ artifact.id }}/download">{{ download_label }}</a>
+      </div>
 
-<section class="panel artifact-surface">
-  {% if rendered.body_kind == 'preformatted' %}
-    {{ rendered.body_html | safe }}
-  {% elif rendered.body_kind == 'rich' %}
-    {{ rendered.body_html | safe }}
-  {% elif rendered.body_kind == 'image' %}
-    {{ rendered.body_html | safe }}
+      <div class="action-group">
+      {% if rendered.mode == 'code' %}
+        <button class="btn btn-ghost btn-sm" type="button" data-action="toggle-wrap" aria-pressed="false">Wrap</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-action="toggle-numbers" aria-pressed="true">Line numbers</button>
+        {% if artifact.kind == 'log' %}
+        <button class="btn btn-ghost btn-sm" type="button" data-action="log-highlight" aria-pressed="false">Highlight WARN/ERROR</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-action="log-filter" aria-pressed="false">Only issues</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-action="log-jump">Jump to first issue</button>
+        {% endif %}
+        {% if artifact.kind == 'json' %}
+        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy raw payload</button>
+        {% endif %}
+      {% elif rendered.mode == 'image' %}
+        <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-text="{{ rendered.image.src }}">Copy src</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="img-md">Copy MD image</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-action="zoom" aria-pressed="false">Zoom</button>
+      {% else %}{# rich: markdown + report #}
+        <button class="btn btn-ghost btn-sm" type="button" data-action="toggle-source">View source</button>
+        {% if artifact.kind == 'markdown' %}
+        <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="source">Copy source</button>
+        {% endif %}
+        {% if artifact.kind == 'report' %}
+        <button class="btn btn-ghost btn-sm" type="button" data-action="print">Print</button>
+        {% endif %}
+      {% endif %}
+      </div>
+
+      <div class="action-group">
+        <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="json">Copy JSON</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="markdown">Copy MD</button>
+        <a class="btn btn-ghost btn-sm" href="/a/{{ artifact.id }}/raw">Raw JSON</a>
+      </div>
+    </div>
+  </header>
+
+  <textarea class="copy-source" data-format="json" data-encoded="base64" hidden>{{ copy_json_b64 }}</textarea>
+  <textarea class="copy-source" data-format="markdown" data-encoded="base64" hidden>{{ copy_markdown_b64 }}</textarea>
+  {% if rendered.mode == 'image' %}
+  <textarea class="copy-source" data-format="img-md" hidden>![{{ rendered.image.alt }}]({{ rendered.image.src }})</textarea>
   {% endif %}
-</section>
 
-<section class="panel footer-grid">
-  <div>
-    <h2>Source metadata</h2>
-    <dl class="meta-list">
+  {% if rendered.mode == 'code' %}
+  <section class="code-view code-surface" data-copy-root>
+    <div class="code-toolbar">
+      <span class="code-lang">{{ rendered.language }}</span>
+      <span class="code-stats">{{ rendered.line_count }} lines · {{ rendered.byte_count | humanbytes }}</span>
+      <button class="copy-btn" type="button" data-copy>Copy</button>
+    </div>
+    <pre class="code-body numbered"{% if artifact.kind == 'log' %} data-log{% endif %}><code>{% for line in rendered.lines %}<span class="ln">{{ line }}</span>{% endfor %}</code></pre>
+    <textarea class="copy-source" data-format="default" hidden>{{ rendered.raw_text }}</textarea>
+  </section>
+
+  {% elif rendered.mode == 'image' %}
+  <section class="surface image-surface">
+    <figure class="image-frame">
+      <img src="{{ rendered.image.src }}" alt="{{ rendered.image.alt }}" data-action="zoom">
+    </figure>
+    {% if rendered.image.caption %}<figcaption class="image-caption">{{ rendered.image.caption }}</figcaption>{% endif %}
+  </section>
+
+  {% else %}
+  <section class="surface prose {{ 'report' if rendered.language == 'report' else 'markdown' }}" data-view="rendered">
+    {{ rendered.html | safe }}
+  </section>
+  <section class="code-view code-surface" data-view="source" data-copy-root hidden>
+    <div class="code-toolbar">
+      <span class="code-lang">source</span>
+      <button class="copy-btn" type="button" data-copy data-copy-format="source">Copy</button>
+    </div>
+    <pre class="code-body"><code data-source-target></code></pre>
+    <textarea class="copy-source" data-format="source" data-encoded="base64" hidden>{{ rendered.raw_text | b64 }}</textarea>
+  </section>
+  {% endif %}
+
+  <footer class="artifact-foot">
+    <dl class="meta-grid">
       <div><dt>Created</dt><dd>{{ artifact.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd></div>
       <div><dt>Expires</dt><dd>{{ artifact.expires_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd></div>
-      <div><dt>Type</dt><dd>{{ artifact.kind }}</dd></div>
+      <div><dt>Kind</dt><dd>{{ artifact.kind | kindlabel }}</dd></div>
+      {% if artifact.metadata.get('source') %}<div><dt>Source</dt><dd>{{ artifact.metadata['source'] }}</dd></div>{% endif %}
     </dl>
-  </div>
-  <div>
-    <h2>Share</h2>
-    <p class="subtle">Use the canonical URL above. When it expires, the page is removed.</p>
-  </div>
-</section>
+    <p class="muted small">This link is temporary. When it expires the page and its data are removed.</p>
+  </footer>
+</article>
 {% endblock %}

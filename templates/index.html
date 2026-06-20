@@ -1,59 +1,105 @@
 {% extends 'base.html' %}
-{% block title %}Artifact Viewer · Clean temporary pages{% endblock %}
+{% block title %}{{ app_name }} · ephemeral pages for agent output{% endblock %}
 {% block content %}
-<section class="hero-card">
-  <div class="eyebrow">Self-hosted · Ephemeral · Agent-friendly</div>
-  <h1>Turn messy data into a clean temporary page.</h1>
-  <p class="hero-copy">POST a payload, get a temporary LAN link back, and open a purpose-built view for logs, JSON, markdown, images, or a safe report page.</p>
+<section class="hero">
+  <h1>Give agent output a clean, temporary home.</h1>
+  <p class="lede">
+    POST a payload, get back a short-lived link. Logs, JSON, markdown, images, and
+    sanitized report HTML each render in a view built for reading — then expire on their own.
+  </p>
   <div class="hero-actions">
-    <a class="button primary" href="#usage">See API usage</a>
-    <a class="button secondary" href="/demo">Open demo page</a>
+    <a class="btn btn-primary" href="#examples">See it in action</a>
+    <a class="btn btn-ghost" href="#api">View the API</a>
   </div>
+  <ul class="kind-row">
+    {% for kind in kinds %}<li class="chip">{{ kind | kindlabel }}</li>{% endfor %}
+  </ul>
 </section>
 
-<section class="panel-grid" id="usage">
-  <article class="panel">
-    <h2>API shape</h2>
-    <pre class="code-sample">POST /api/artifacts
-{
-  "title": "Log excerpt",
-  "kind": "log",
-  "ttl_minutes": 30,
-  "content": "..."
-}</pre>
-    <p>Response includes the artifact id, expiry timestamp, and a temporary URL such as <code>{{ base_url }}/a/...</code>.</p>
-  </article>
-  <article class="panel">
-    <h2>What it is good at</h2>
-    <ul class="bullet-list">
-      <li>Large logs with context</li>
-      <li>JSON and nested structures</li>
-      <li>Markdown writeups and summaries</li>
-      <li>Images and image notes</li>
-      <li>Short-lived reports for quick review</li>
-    </ul>
-  </article>
-</section>
-
-<section class="panel">
+<section id="examples">
   <div class="section-head">
+    <h2>See it in action</h2>
+    <span class="muted">Each card opens a real, expiring artifact — the same path as the API.</span>
+  </div>
+  <ul class="example-grid">
+    {% for ex in examples %}
+    <li>
+      <a class="example-card" href="/examples/{{ ex.slug }}">
+        <span class="example-top">
+          <span class="recent-kind" data-kind="{{ ex.kind }}">{{ ex.kind | kindlabel }}</span>
+          <span class="example-open">Open →</span>
+        </span>
+        <span class="example-title">{{ ex.title }}</span>
+        <span class="example-summary">{{ ex.summary }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="grid-2" id="api">
+  <article class="card">
+    <h2>Create an artifact</h2>
+    <p class="muted">A single POST returns the canonical URL to share.</p>
+    <div class="code-view" data-copy-root>
+      <div class="code-toolbar">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" type="button" data-copy>Copy</button>
+      </div>
+      <pre class="code-body"><code>curl -s {{ base_url }}/api/artifacts \
+  -H 'content-type: application/json' \{% if auth_required %}
+  -H 'x-api-key: $API_KEY' \{% endif %}
+  -d '{
+    "title": "Nightly job log",
+    "kind": "log",
+    "ttl_minutes": 120,
+    "content": "..."
+  }'</code></pre>
+      <textarea class="copy-source" hidden>curl -s {{ base_url }}/api/artifacts -H 'content-type: application/json'{% if auth_required %} -H 'x-api-key: $API_KEY'{% endif %} -d '{"title":"Nightly job log","kind":"log","ttl_minutes":120,"content":"..."}'</textarea>
+    </div>
+  </article>
+
+  <article class="card">
+    <h2>What comes back</h2>
+    <p class="muted">Hand the <code>url</code> straight to a human.</p>
+    <div class="code-view">
+      <div class="code-toolbar"><span class="code-lang">json</span></div>
+      <pre class="code-body"><code>{
+  "id": "9f2c1a7b3e4d",
+  "kind": "log",
+  "title": "Nightly job log",
+  "expires_at": "…Z",
+  "url": "{{ base_url }}/a/9f2c1a7b3e4d"
+}</code></pre>
+    </div>
+    {% if auth_required %}
+    <p class="note">This instance requires an <code>x-api-key</code> header to create artifacts.</p>
+    {% endif %}
+  </article>
+</section>
+
+<section class="card">
+  <div class="card-head">
     <h2>Recent artifacts</h2>
-    <span class="subtle">Auto-pruned when expired</span>
+    <span class="muted">{{ count }} live · auto-pruned on expiry</span>
   </div>
   {% if recent %}
-  <div class="recent-list">
+  <ul class="recent">
     {% for item in recent %}
-    <a class="recent-item" href="/a/{{ item.id }}">
-      <div>
-        <strong>{{ item.title }}</strong>
-        <span>{{ item.kind }} · {{ item.id }}</span>
-      </div>
-      <time datetime="{{ item.expires_at.isoformat() }}">expires {{ item.expires_at.strftime('%Y-%m-%d %H:%M UTC') }}</time>
-    </a>
+    <li>
+      <a class="recent-item" href="/a/{{ item.id }}">
+        <span class="recent-kind" data-kind="{{ item.kind }}">{{ item.kind | kindlabel }}</span>
+        <span class="recent-main">
+          <span class="recent-title">{{ item.title }}</span>
+          <span class="recent-id">{{ item.id }}</span>
+        </span>
+        <span class="recent-ttl">{{ item.expires_at | remaining }} left</span>
+      </a>
+    </li>
     {% endfor %}
-  </div>
+  </ul>
   {% else %}
-  <p class="empty-state">No artifacts yet. Create one via the API or open the demo.</p>
+  <p class="empty">No live artifacts. Create one with the API above, or <a href="/demo">open the demo</a>.</p>
   {% endif %}
 </section>
 {% endblock %}
