@@ -88,10 +88,7 @@
     }
   }
 
-  function toggleSource(root, btn) {
-    var rendered = root.querySelector('[data-view="rendered"]');
-    var source = root.querySelector('[data-view="source"]');
-    if (!rendered || !source) return;
+  function fillSource(source) {
     var target = source.querySelector("[data-source-target]");
     if (target && !target.dataset.filled) {
       var raw = source.querySelector(".copy-source");
@@ -100,9 +97,25 @@
         target.dataset.filled = "1";
       }
     }
-    rendered.toggleAttribute("hidden");
-    source.toggleAttribute("hidden");
-    btn.textContent = source.hasAttribute("hidden") ? "View source" : "View rendered";
+  }
+
+  function selectView(tab) {
+    var root = tab.closest(".artifact");
+    if (!root) return;
+    var selected = tab.dataset.tab;
+    var views = root.querySelectorAll("[data-view]");
+    for (var i = 0; i < views.length; i++) {
+      var isSelected = views[i].dataset.view === selected;
+      views[i].toggleAttribute("hidden", !isSelected);
+      if (isSelected && selected === "source") {
+        fillSource(views[i]);
+      }
+    }
+
+    var tabs = root.querySelectorAll("[data-tab]");
+    for (var j = 0; j < tabs.length; j++) {
+      tabs[j].classList.toggle("is-active", tabs[j] === tab);
+    }
   }
 
   function jumpToIssue(root, btn) {
@@ -140,9 +153,6 @@
       case "log-jump":
         jumpToIssue(root, btn);
         break;
-      case "toggle-source":
-        toggleSource(root, btn);
-        break;
       case "zoom":
         var img = root.querySelector(".image-frame img");
         if (img) setPressed(btn, img.classList.toggle("is-zoomed"));
@@ -156,6 +166,13 @@
   // ---- wiring ------------------------------------------------------------
 
   document.addEventListener("click", function (event) {
+    var tabBtn = event.target.closest("[data-tab]");
+    if (tabBtn) {
+      event.preventDefault();
+      selectView(tabBtn);
+      return;
+    }
+
     var actionBtn = event.target.closest("[data-action]");
     if (actionBtn) {
       event.preventDefault();

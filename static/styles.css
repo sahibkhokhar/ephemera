@@ -370,6 +370,43 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
 .action-group:last-child .btn-ghost { color: var(--text-soft); }
 .action-group:last-child .btn-ghost:hover { color: var(--text); }
 
+.view-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 0 10px;
+  margin-bottom: 0;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.view-tab {
+  appearance: none;
+  position: relative;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+}
+.view-tab:hover { color: var(--text); }
+.view-tab.is-active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.view-tab-action { margin-left: auto; }
+.view-tabs + [data-view],
+.view-tabs ~ [data-view] {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
 .surface {
   background: var(--surface);
   border: 1px solid var(--border);

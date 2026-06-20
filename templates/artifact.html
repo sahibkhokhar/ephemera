@@ -33,10 +33,6 @@
         <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="img-md">Copy MD image</button>
         <button class="btn btn-ghost btn-sm" type="button" data-action="zoom" aria-pressed="false">Zoom</button>
       {% else %}{# rich: markdown + report #}
-        <button class="btn btn-ghost btn-sm" type="button" data-action="toggle-source">View source</button>
-        {% if artifact.kind == 'markdown' %}
-        <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="source">Copy source</button>
-        {% endif %}
         {% if artifact.kind == 'report' %}
         <button class="btn btn-ghost btn-sm" type="button" data-action="print">Print</button>
         {% endif %}
@@ -77,6 +73,13 @@
   </section>
 
   {% else %}
+  <div class="view-tabs" data-view-tabs>
+    <button class="view-tab is-active" type="button" data-tab="rendered">Preview</button>
+    <button class="view-tab" type="button" data-tab="source">Code</button>
+    {% if artifact.kind == 'markdown' %}
+    <button class="view-tab view-tab-action" type="button" data-copy data-copy-format="source">Copy source</button>
+    {% endif %}
+  </div>
   <section class="surface prose {{ 'report' if rendered.language == 'report' else 'markdown' }}" data-view="rendered">
     {{ rendered.html | safe }}
   </section>

@@ -432,20 +432,26 @@ def test_json_page_has_copy_raw_and_download(client: TestClient):
     assert "Download JSON" in html
 
 
-def test_markdown_page_has_source_toggle(client: TestClient):
+def test_markdown_page_has_preview_code_tabs(client: TestClient):
     artifact_id = create(client, kind="markdown", content="# H").json()["id"]
     html = client.get(f"/a/{artifact_id}").text
-    assert 'data-action="toggle-source"' in html
+    assert 'data-view-tabs' in html
+    assert 'data-tab="rendered"' in html
+    assert 'data-tab="source"' in html
+    assert 'data-action="toggle-source"' not in html
     assert 'data-copy-format="source"' in html
     assert 'data-view="source"' in html
     assert "Download .md" in html
 
 
-def test_report_page_has_print_and_source(client: TestClient):
+def test_report_page_has_print_and_preview_code_tabs(client: TestClient):
     artifact_id = create(client, kind="report", content="<p>hi</p>").json()["id"]
     html = client.get(f"/a/{artifact_id}").text
     assert 'data-action="print"' in html
-    assert 'data-action="toggle-source"' in html
+    assert 'data-view-tabs' in html
+    assert 'data-tab="rendered"' in html
+    assert 'data-tab="source"' in html
+    assert 'data-action="toggle-source"' not in html
 
 
 def test_image_page_has_image_actions(client: TestClient):
