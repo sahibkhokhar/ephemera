@@ -30,8 +30,17 @@ The landing page includes live example artifacts, so you can try every renderer 
 
 ## Docker
 
+Quick start with the pre-built GHCR image:
+
 ```bash
-docker compose up --build
+docker compose up
+```
+
+Build locally from the Dockerfile instead:
+
+```bash
+docker compose build
+docker compose up
 ```
 
 By default the Compose setup stores data in `./data` and serves Ephemera on port `8000`.

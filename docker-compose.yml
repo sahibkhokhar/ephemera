@@ -1,6 +1,7 @@
 services:
   artifact-viewer:
-    build: .
+    # Local builds still work with: docker compose build
+    image: ghcr.io/sahibkhokhar/ephemera:latest
     ports:
       - "8000:8000"
     environment:
