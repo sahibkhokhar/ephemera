@@ -218,7 +218,8 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
 .card > .muted { margin-top: 0; }
 .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .card-head h2 { margin: 0; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch; }
+.grid-2 > .card { height: 100%; }
 
 .muted { color: var(--text-soft); }
 .small { font-size: 13px; }
