@@ -33,7 +33,12 @@
     for (var i = 0; i < els.length; i++) {
       var t = Date.parse(els[i].getAttribute("data-expires"));
       if (!isNaN(t)) {
-        nodes.push({ el: els[i], at: t, suffix: els[i].dataset.suffix || "" });
+        nodes.push({
+          el: els[i],
+          at: t,
+          prefix: els[i].dataset.prefix || "",
+          suffix: els[i].dataset.suffix || "",
+        });
       }
     }
   }
@@ -44,7 +49,7 @@
     for (var i = 0; i < nodes.length; i++) {
       var n = nodes[i];
       var remaining = n.at - now;
-      n.el.textContent = fmt(remaining) + (remaining > 0 ? n.suffix : "");
+      n.el.textContent = (remaining > 0 ? n.prefix : "") + fmt(remaining) + (remaining > 0 ? n.suffix : "");
       if (remaining > 0) {
         live = true;
         n.el.classList.remove("is-expired");

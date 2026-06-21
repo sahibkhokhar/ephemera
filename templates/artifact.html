@@ -1,58 +1,33 @@
 {% extends 'base.html' %}
+{% from '_components.html' import icon, btn, icon_btn %}
 {% block title %}{{ artifact.title }} · {{ app_name }}{% endblock %}
 {% block content %}
 <article class="artifact" data-copy-root>
+  {# ---- header: artifact-level identity + actions only -------------------- #}
   <header class="artifact-head">
-    <div class="artifact-tags">
-      <span class="recent-kind" data-kind="{{ artifact.kind }}">{{ artifact.kind }}</span>
-      <span class="meta-dot" data-expires="{{ artifact.expires_at.isoformat() }}" data-suffix="">expires in {{ artifact.expires_at | remaining }}</span>
-      <span class="meta-dot">{{ artifact.id }}</span>
+    <div class="artifact-meta">
+      <span class="kind" data-kind="{{ artifact.kind }}">{{ artifact.kind }}</span>
+      <span class="meta-sep">·</span>
+      <button class="meta-id" type="button" data-copy data-copy-text="{{ canonical_url }}"
+              title="Copy link to this artifact">{{ artifact.id }}{{ icon('copy', 13) }}</button>
+      <span class="meta-sep">·</span>
+      <span class="meta-expiry" data-expires="{{ artifact.expires_at.isoformat() }}" data-prefix="expires in " data-suffix="">expires in {{ artifact.expires_at | remaining }}</span>
     </div>
     <h1>{{ artifact.title }}</h1>
+
     {% set download_label = 'Download JSON' if artifact.kind == 'json' else 'Download .md' if artifact.kind in ('markdown', 'report') else 'Download' %}
     <div class="artifact-actions" role="group" aria-label="Artifact actions">
-      <div class="action-section action-section-primary">
-        <span class="action-label">Share</span>
-        <div class="action-group">
-          <button class="btn btn-primary btn-sm" type="button" data-copy data-copy-text="{{ canonical_url }}">Copy link</button>
-          <a class="btn btn-ghost btn-sm" href="/a/{{ artifact.id }}/download">{{ download_label }}</a>
-        </div>
-      </div>
-
-      {% set has_view_actions = rendered.mode == 'code' or rendered.mode == 'image' or artifact.kind == 'report' %}
-      {% if has_view_actions %}
-      <div class="action-section action-section-view{% if artifact.kind == 'log' %} action-section-view-log{% endif %}">
-        <span class="action-label">{% if rendered.mode == 'code' %}View{% elif rendered.mode == 'image' %}Image{% else %}Document{% endif %}</span>
-        <div class="action-group">
-        {% if rendered.mode == 'code' %}
-          <button class="btn btn-ghost btn-sm" type="button" data-action="toggle-wrap" aria-pressed="false">Wrap</button>
-          <button class="btn btn-ghost btn-sm" type="button" data-action="toggle-numbers" aria-pressed="true">Line numbers</button>
-          {% if artifact.kind == 'log' %}
-          <button class="btn btn-ghost btn-sm" type="button" data-action="log-highlight" aria-pressed="false">Highlight WARN/ERROR</button>
-          <button class="btn btn-ghost btn-sm" type="button" data-action="log-filter" aria-pressed="false">Only issues</button>
-          <button class="btn btn-ghost btn-sm" type="button" data-action="log-jump">Jump to first issue</button>
-          {% endif %}
-          {% if artifact.kind == 'json' %}
-          <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy raw payload</button>
-          {% endif %}
-        {% elif rendered.mode == 'image' %}
-          <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-text="{{ rendered.image.src }}">Copy src</button>
-          <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="img-md">Copy MD image</button>
-          <button class="btn btn-ghost btn-sm" type="button" data-action="zoom" aria-pressed="false">Zoom</button>
-        {% else %}{# report #}
-          <button class="btn btn-ghost btn-sm" type="button" data-action="print">Print</button>
-        {% endif %}
-        </div>
-      </div>
-      {% endif %}
-
+      {{ btn('Copy link', kind='primary', ic='link', attrs='data-copy data-copy-text="' ~ canonical_url ~ '"') }}
+      {{ btn(download_label, ic='download', href='/a/' ~ artifact.id ~ '/download') }}
       {% if artifact.kind not in ('markdown', 'report') %}
-      <div class="action-section action-section-secondary">
-        <span class="action-label">Export</span>
-        <div class="action-group">
-          <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="json">Copy JSON</button>
-          <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="markdown">Copy MD</button>
-          <a class="btn btn-ghost btn-sm" href="/a/{{ artifact.id }}/raw">Raw JSON</a>
+      <div class="overflow" data-overflow>
+        <button class="btn btn-ghost btn-sm btn-icon" type="button" data-overflow-toggle
+                aria-haspopup="true" aria-expanded="false" aria-label="More export options">{{ icon('dots', 16) }}</button>
+        <div class="overflow-menu" data-overflow-menu hidden>
+          <span class="overflow-label">export as</span>
+          <button class="overflow-item" type="button" data-copy data-copy-format="json">{{ icon('copy', 14) }}Copy JSON</button>
+          <button class="overflow-item" type="button" data-copy data-copy-format="markdown">{{ icon('copy', 14) }}Copy Markdown</button>
+          <a class="overflow-item" href="/a/{{ artifact.id }}/raw">{{ icon('copy', 14) }}Raw JSON</a>
         </div>
       </div>
       {% endif %}
@@ -65,31 +40,57 @@
   <textarea class="copy-source" data-format="img-md" hidden>![{{ rendered.image.alt }}]({{ rendered.image.src }})</textarea>
   {% endif %}
 
+  {# ---- code surfaces: text / log / json --------------------------------- #}
   {% if rendered.mode == 'code' %}
   <section class="code-view code-surface" data-copy-root>
     <div class="code-toolbar">
       <span class="code-lang">{{ rendered.language }}</span>
       <span class="code-stats">{{ rendered.line_count }} lines · {{ rendered.byte_count | humanbytes }}</span>
-      <button class="copy-btn" type="button" data-copy>Copy</button>
+      {% if artifact.kind == 'log' %}
+      {# Issue chips are injected here by app.js once WARN/ERROR lines are counted. #}
+      <div class="ribbon" data-ribbon></div>
+      {% endif %}
+      <div class="code-tools">
+        {{ icon_btn('wrap', 'toggle-wrap', 'Toggle wrap', pressed=false) }}
+        {{ icon_btn('numbers', 'toggle-numbers', 'Toggle line numbers', pressed=true) }}
+        <span class="tool-sep"></span>
+        <button class="copy-btn" type="button" data-copy>copy</button>
+      </div>
     </div>
     <div class="code-pane">
+      {% if artifact.kind == 'log' %}<div class="minimap" data-minimap aria-hidden="true"></div>{% endif %}
       <pre class="code-body numbered"{% if artifact.kind == 'log' %} data-log{% endif %}><code>{% for line in rendered.lines %}<span class="ln"><span class="ln-gutter" aria-hidden="true"></span><span class="ln-text">{{ line }}</span></span>{% endfor %}</code></pre>
     </div>
     <textarea class="copy-source" data-format="default" hidden>{{ rendered.raw_text }}</textarea>
   </section>
 
+  {# ---- image ------------------------------------------------------------ #}
   {% elif rendered.mode == 'image' %}
-  <section class="surface image-surface">
+  <section class="surface image-surface" data-copy-root>
+    <div class="code-toolbar">
+      <span class="code-lang">image</span>
+      <span class="code-stats">{{ rendered.byte_count | humanbytes }}</span>
+      <div class="code-tools">
+        <button class="copy-btn" type="button" data-copy data-copy-text="{{ rendered.image.src }}">copy src</button>
+        <button class="copy-btn" type="button" data-copy data-copy-format="img-md">copy md</button>
+        <span class="tool-sep"></span>
+        {{ icon_btn('zoom', 'zoom', 'Toggle zoom', pressed=false) }}
+      </div>
+    </div>
     <figure class="image-frame">
       <img src="{{ rendered.image.src }}" alt="{{ rendered.image.alt }}" data-action="zoom">
     </figure>
     {% if rendered.image.caption %}<figcaption class="image-caption">{{ rendered.image.caption }}</figcaption>{% endif %}
   </section>
 
+  {# ---- rich surfaces: markdown / report --------------------------------- #}
   {% else %}
   <div class="view-tabs" data-view-tabs>
     <button class="view-tab is-active" type="button" data-tab="rendered">Preview</button>
     <button class="view-tab" type="button" data-tab="source">Code</button>
+    {% if artifact.kind == 'report' %}
+    <button class="view-tab view-tab-action" type="button" data-action="print">{{ icon('print', 15) }}Print</button>
+    {% endif %}
   </div>
   <section class="surface prose {{ 'report' if rendered.language == 'report' else 'markdown' }}" data-view="rendered">
     {{ rendered.html | safe }}
@@ -97,7 +98,9 @@
   <section class="code-view code-surface" data-view="source" data-copy-root hidden>
     <div class="code-toolbar">
       <span class="code-lang">source</span>
-      <button class="copy-btn" type="button" data-copy data-copy-format="source">Copy</button>
+      <div class="code-tools">
+        <button class="copy-btn" type="button" data-copy data-copy-format="source">copy</button>
+      </div>
     </div>
     <pre class="code-body"><code data-source-target></code></pre>
     <textarea class="copy-source" data-format="source" data-encoded="base64" hidden>{{ rendered.raw_text | b64 }}</textarea>
@@ -106,10 +109,10 @@
 
   <footer class="artifact-foot">
     <dl class="meta-grid">
-      <div><dt>Created</dt><dd>{{ artifact.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd></div>
-      <div><dt>Expires</dt><dd>{{ artifact.expires_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd></div>
-      <div><dt>Kind</dt><dd>{{ artifact.kind }}</dd></div>
-      {% if artifact.metadata.get('source') %}<div><dt>Source</dt><dd>{{ artifact.metadata['source'] }}</dd></div>{% endif %}
+      <div><dt>created</dt><dd>{{ artifact.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd></div>
+      <div><dt>expires</dt><dd>{{ artifact.expires_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd></div>
+      <div><dt>kind</dt><dd>{{ artifact.kind }}</dd></div>
+      {% if artifact.metadata.get('source') %}<div><dt>source</dt><dd>{{ artifact.metadata['source'] }}</dd></div>{% endif %}
     </dl>
     <p class="muted small">This link is temporary. When it expires the page and its data are removed.</p>
   </footer>

@@ -242,11 +242,10 @@ def test_openapi_schema_served(client: TestClient):
 def test_index_shows_instance_dashboard(client: TestClient):
     res = client.get("/")
     assert res.status_code == 200
-    assert "Your Ephemera instance" in res.text
-    assert "Recent artifacts" in res.text
-    assert "Create an artifact" in res.text
+    assert ">recent<" in res.text
+    assert ">create<" in res.text
     assert "POST /api/artifacts" in res.text
-    assert "default TTL" in res.text
+    assert "default ttl" in res.text
     assert "Example artifacts" not in res.text
 
 
@@ -435,16 +434,20 @@ def test_log_page_has_log_actions(client: TestClient):
     artifact_id = create(client, kind="log", content="ok\nERROR boom").json()["id"]
     html = client.get(f"/a/{artifact_id}").text
     assert 'data-action="toggle-wrap"' in html
-    assert 'data-action="log-highlight"' in html
-    assert 'data-action="log-filter"' in html
-    assert 'data-action="log-jump"' in html
+    assert 'data-action="toggle-numbers"' in html
+    # Issue highlight/filter/jump are now driven by the JS-built issue ribbon
+    # and minimap rather than standalone buttons.
+    assert "data-ribbon" in html
+    assert "data-minimap" in html
     assert "data-log" in html
 
 
 def test_json_page_has_copy_raw_and_download(client: TestClient):
     artifact_id = create(client, kind="json", content='{"a": 1}').json()["id"]
     html = client.get(f"/a/{artifact_id}").text
-    assert "Copy raw payload" in html
+    # Export formats moved into the overflow (⋯) menu.
+    assert 'data-copy-format="json"' in html
+    assert f"/a/{artifact_id}/raw" in html
     assert f"/a/{artifact_id}/download" in html
     assert "Download JSON" in html
 
@@ -477,7 +480,7 @@ def test_image_page_has_image_actions(client: TestClient):
     ).json()["id"]
     html = client.get(f"/a/{artifact_id}").text
     assert 'data-action="zoom"' in html
-    assert "Copy src" in html
+    assert "copy src" in html
     assert 'data-format="img-md"' in html
     assert "![A](https://x/y.png)" in html
 

@@ -1,73 +1,52 @@
 {% extends 'base.html' %}
+{% from '_components.html' import kind_label %}
 {% block title %}{{ app_name }} · your instance{% endblock %}
 {% block body_class %}page-home{% endblock %}
 {% block content %}
 
-<div class="home-hero-row">
-  <div class="home-hero-text">
-    <h1 class="home-title">Your instance</h1>
-    <p class="home-lede">POST a payload, get a short-lived link. Everything here prunes itself on expiry.</p>
-  </div>
-  <a class="btn btn-primary btn-sm home-cta" href="/api/docs">+ new via API</a>
+{# Instance config collapses into one dim status line — no 4-up stat cards. #}
+<div class="status-line">
+  <span class="status-app">{{ app_name }}</span>
+  <span class="status-sep">·</span>
+  <span>default ttl <b>{{ default_ttl_minutes }} min</b></span>
+  <span class="status-sep">·</span>
+  <span>max <b>{% if max_ttl_minutes >= 1440 %}{{ max_ttl_minutes // 1440 }} day{{ 's' if (max_ttl_minutes // 1440) != 1 else '' }}{% else %}{{ max_ttl_minutes }} min{% endif %}</b></span>
+  <span class="status-sep">·</span>
+  {% if auth_required %}
+  <span>writes <b class="status-warn">api key required</b></span>
+  {% else %}
+  <span>writes <b class="status-ok">open</b></span>
+  {% endif %}
 </div>
 
-<div class="instance-grid instance-card">
-  <div class="instance-cell">
-    <div class="instance-label">app</div>
-    <div class="instance-value">{{ app_name }}</div>
-  </div>
-  <div class="instance-cell">
-    <div class="instance-label">default TTL</div>
-    <div class="instance-value">{{ default_ttl_minutes }} min</div>
-  </div>
-  <div class="instance-cell">
-    <div class="instance-label">max TTL</div>
-    <div class="instance-value">{% if max_ttl_minutes >= 1440 %}{{ max_ttl_minutes // 1440 }} day{{ 's' if (max_ttl_minutes // 1440) != 1 else '' }}{% else %}{{ max_ttl_minutes }} min{% endif %}</div>
-  </div>
-  <div class="instance-cell instance-cell-last">
-    <div class="instance-label">writes</div>
-    {% if auth_required %}
-    <div class="instance-status instance-status-warn"><span class="status-dot"></span>API key required</div>
-    {% else %}
-    <div class="instance-status instance-status-ok"><span class="status-dot"></span>open</div>
-    {% endif %}
-  </div>
-</div>
-
-<div class="section-head home-section-head">
-  <h2 class="home-section-title">Recent artifacts</h2>
-  <span class="home-section-meta">{{ count }} live · auto-pruned on expiry</span>
+<div class="section-head">
+  <h2 class="section-title">recent</h2>
+  <span class="section-meta">{{ count }} live{% if recent|length < count %} · showing {{ recent|length }}{% endif %}</span>
 </div>
 
 {% if recent %}
-<div class="recent-panel">
+{# git-log-style table: id · kind · title · ttl, fixed columns. #}
+<div class="ledger">
   {% for item in recent %}
-  <a class="recent-row" href="/a/{{ item.id }}">
-    <span class="recent-kind" data-kind="{{ item.kind }}">{{ item.kind }}</span>
-    <span class="recent-row-main">
-      <span class="recent-row-title">{{ item.title }}</span>
-      <span class="recent-row-id">{{ item.id }}</span>
-    </span>
-    {% if loop.first %}
-    <span class="recent-ttl-pill"><span class="recent-ttl-dot eph-dot-pulse"></span><span data-expires="{{ item.expires_at.isoformat() }}" data-suffix=" left">{{ item.expires_at | remaining }} left</span></span>
-    {% else %}
-    <span class="recent-ttl" data-expires="{{ item.expires_at.isoformat() }}" data-suffix=" left">{{ item.expires_at | remaining }} left</span>
-    {% endif %}
+  <a class="ledger-row" href="/a/{{ item.id }}">
+    <span class="ledger-id">{{ item.id }}</span>
+    {{ kind_label(item.kind) }}
+    <span class="ledger-title">{{ item.title }}</span>
+    <span class="ledger-ttl{% if loop.first %} is-fresh{% endif %}" data-expires="{{ item.expires_at.isoformat() }}" data-suffix="">{{ item.expires_at | remaining }}</span>
   </a>
   {% endfor %}
 </div>
 {% else %}
 <div class="home-empty">
-  <div class="home-empty-icon" aria-hidden="true">~</div>
-  <div class="home-empty-title">No live artifacts yet</div>
-  <p class="home-empty-copy">Post your first payload and it'll show up here until its TTL runs out. Use the API quickstart below to create one.</p>
+  <div class="home-empty-title">no live artifacts</div>
+  <p class="home-empty-copy">Post your first payload and it shows up here until its TTL runs out. Use the quickstart below.</p>
   <span class="home-empty-hint">waiting for POST /api/artifacts …</span>
 </div>
 {% endif %}
 
-<div class="section-head home-section-head">
-  <h2 class="home-section-title">Create an artifact</h2>
-  <a class="home-section-link" href="/api/docs">full API reference →</a>
+<div class="section-head">
+  <h2 class="section-title">create</h2>
+  <a class="section-link" href="/api/docs">full API reference →</a>
 </div>
 <div class="create-grid">
   <div class="code-view code-view-flush" data-copy-root>
