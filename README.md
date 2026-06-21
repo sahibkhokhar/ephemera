@@ -176,6 +176,25 @@ Ephemera is designed to display untrusted artifact content with a conservative b
 
 Authentication only protects writes. Treat every artifact URL as a bearer link that can be opened by anyone who has it.
 
+## Connect an agent
+
+If you run a local agent (Hermes, OpenClaw, Claude Code, Cursor, etc.), paste the
+block below into its system prompt, skills folder, or project instructions.
+Replace the instance URL and API key with your values.
+
+```
+Load the Ephemera skill (Agent Skills format):
+https://raw.githubusercontent.com/sahibkhokhar/ephemera/main/skills/ephemera/SKILL.md
+
+Or copy the skills/ephemera/ directory into your agent's skills path.
+
+My instance:
+  EPHEMERA_URL=http://192.168.1.50:8000
+  EPHEMERA_API_KEY=                    # leave blank if writes are open
+```
+
+Works in Hermes, Cursor, OpenClaw, Claude Code, and other [Agent Skills](https://agentskills.io)-compatible harnesses. See [`skills/ephemera/SKILL.md`](skills/ephemera/SKILL.md).
+
 ## Development
 
 Run the test suite:
