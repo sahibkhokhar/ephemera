@@ -60,23 +60,10 @@
 <div class="home-empty">
   <div class="home-empty-icon" aria-hidden="true">~</div>
   <div class="home-empty-title">No live artifacts yet</div>
-  <p class="home-empty-copy">Post your first payload and it'll show up here until its TTL runs out. Try an example artifact below, or use the API quickstart.</p>
+  <p class="home-empty-copy">Post your first payload and it'll show up here until its TTL runs out. Use the API quickstart below to create one.</p>
   <span class="home-empty-hint">waiting for POST /api/artifacts …</span>
 </div>
 {% endif %}
-
-<div class="section-head home-section-head">
-  <h2 class="home-section-title">Example artifacts</h2>
-  <span class="home-section-meta">try every renderer · same code path as the API</span>
-</div>
-<div class="example-strip">
-  {% for ex in examples %}
-  <a class="example-chip" href="/examples/{{ ex.slug }}">
-    <span class="recent-kind" data-kind="{{ ex.kind }}">{{ ex.kind }}</span>
-    <span class="example-chip-title">{{ ex.title }}</span>
-  </a>
-  {% endfor %}
-</div>
 
 <div class="section-head home-section-head">
   <h2 class="home-section-title">Create an artifact</h2>

@@ -7,7 +7,8 @@ Post a payload, get back a short-lived URL, and open it in a clean browser view.
 ## Features
 
 - Temporary share URLs for logs, text, JSON, markdown, images, and HTML-style reports
-- Server-rendered instance dashboard with recent artifacts, curated example links, copy buttons, downloads, and mobile-friendly pages
+- JSON API plus a raw file-upload endpoint, so agents and CI can stream a file straight in without JSON-wrapping it
+- Server-rendered instance dashboard with recent artifacts, copy buttons, downloads, and mobile-friendly pages
 - Log viewer with line numbers, wrapping, issue highlighting, filtering, and jump-to-first-issue
 - Pretty JSON rendering and raw JSON endpoints for automation
 - Markdown rendering with tables, fenced code blocks, and task lists
@@ -26,7 +27,7 @@ uv run uvicorn artifact_viewer.main:app --host 0.0.0.0 --port 8000
 
 Open `http://127.0.0.1:8000`, or use `http://<your-lan-ip>:8000` from another device on the same network.
 
-The home page is your instance dashboard: live stats, recent artifacts, and API quickstart. Use the **Example artifacts** list to open curated demos for every renderer (`/examples/{slug}`), or `/demo` for a single rich markdown sample.
+The home page is your instance dashboard: live stats, recent artifacts, and an API quickstart for creating payloads.
 
 ## Docker
 
@@ -91,6 +92,18 @@ curl -s http://127.0.0.1:8000/api/artifacts \
     }
   }' | jq
 ```
+
+Upload a file directly (the raw body becomes the content, no JSON wrapping):
+
+```bash
+curl -s "http://127.0.0.1:8000/api/artifacts/upload?kind=log&title=CI+log&ttl_minutes=120" \
+  -H 'content-type: text/plain' \
+  --data-binary @build.log | jq
+```
+
+Pass `kind` (required) and optional `title`, `filename`, and `ttl_minutes` as query
+parameters. `json` bodies must be valid JSON; `image` uploads need a matching
+`image/*` content type. The response matches `POST /api/artifacts`.
 
 When `API_KEY` is set, include one of these headers on write requests:
 

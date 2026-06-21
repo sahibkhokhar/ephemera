@@ -460,23 +460,6 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
   margin: 24px 2px 0; font: 500 11.5px var(--mono); color: var(--text-faint);
 }
 
-.example-strip {
-  display: flex; flex-direction: column; gap: 0;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); overflow: hidden; margin-bottom: 30px;
-}
-.example-chip {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 18px; color: var(--text); text-decoration: none;
-  transition: background .14s;
-}
-.example-chip + .example-chip { border-top: 1px solid #161a20; }
-.example-chip:hover { background: var(--surface-soft); text-decoration: none; }
-.example-chip-title {
-  flex: 1; min-width: 0; font: 600 13px var(--mono); color: #e6e9ef;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
 /* demo code syntax tokens */
 .tok-prompt { color: var(--text-soft); }
 .tok-url { color: var(--accent-text); }

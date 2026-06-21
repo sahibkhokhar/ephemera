@@ -244,13 +244,10 @@ def test_index_shows_instance_dashboard(client: TestClient):
     assert res.status_code == 200
     assert "Your Ephemera instance" in res.text
     assert "Recent artifacts" in res.text
-    assert "Example artifacts" in res.text
     assert "Create an artifact" in res.text
     assert "POST /api/artifacts" in res.text
     assert "default TTL" in res.text
-    for ex in EXAMPLES:
-        assert f"/examples/{ex.slug}" in res.text
-        assert ex.title in res.text
+    assert "Example artifacts" not in res.text
 
 
 def test_artifact_page_live_expiry(client: TestClient):
@@ -493,3 +490,118 @@ def test_report_source_not_leaked_as_plaintext(client: TestClient):
     html = client.get(f"/a/{artifact_id}").text
     assert "javascript:" not in html
     assert "kept" in html
+
+
+# ---- raw file upload -----------------------------------------------------
+
+
+def test_upload_log_body_becomes_content(client: TestClient):
+    res = client.post(
+        "/api/artifacts/upload?kind=log&title=Build",
+        content=b"line 1\nERROR boom\n",
+        headers={"content-type": "text/plain"},
+    )
+    assert res.status_code == 201
+    body = res.json()
+    assert body["kind"] == "log"
+    assert body["title"] == "Build"
+    detail = client.get(f"/api/artifacts/{body['id']}")
+    assert detail.json()["content"] == "line 1\nERROR boom\n"
+
+
+def test_upload_json_body_is_parsed(client: TestClient):
+    res = client.post(
+        "/api/artifacts/upload?kind=json",
+        content=b'{"b": 2, "a": 1}',
+        headers={"content-type": "application/json"},
+    )
+    assert res.status_code == 201
+    detail = client.get(f"/api/artifacts/{res.json()['id']}")
+    assert detail.json()["content"] == {"a": 1, "b": 2}
+
+
+def test_upload_invalid_json_rejected(client: TestClient):
+    res = client.post(
+        "/api/artifacts/upload?kind=json",
+        content=b"not json",
+        headers={"content-type": "application/json"},
+    )
+    assert res.status_code == 400
+
+
+def test_upload_title_falls_back_to_filename(client: TestClient):
+    res = client.post(
+        "/api/artifacts/upload?kind=text&filename=notes.txt",
+        content=b"hi",
+    )
+    assert res.status_code == 201
+    assert res.json()["title"] == "notes.txt"
+
+
+def test_upload_image_requires_image_content_type(client: TestClient):
+    res = client.post(
+        "/api/artifacts/upload?kind=image",
+        content=b"\x89PNG\r\n\x1a\nfake",
+        headers={"content-type": "text/plain"},
+    )
+    assert res.status_code == 400
+
+
+def test_upload_image_builds_data_url(client: TestClient):
+    raw = b"\x89PNG\r\n\x1a\nfake-bytes"
+    res = client.post(
+        "/api/artifacts/upload?kind=image&title=Shot",
+        content=raw,
+        headers={"content-type": "image/png"},
+    )
+    assert res.status_code == 201
+    detail = client.get(f"/api/artifacts/{res.json()['id']}")
+    src = detail.json()["content"]["src"]
+    assert src.startswith("data:image/png;base64,")
+    assert base64.b64decode(src.split(",", 1)[1]) == raw
+
+
+def test_upload_empty_body_rejected(client: TestClient):
+    res = client.post("/api/artifacts/upload?kind=log", content=b"")
+    assert res.status_code == 400
+
+
+def test_upload_invalid_kind_rejected(client: TestClient):
+    res = client.post("/api/artifacts/upload?kind=bogus", content=b"x")
+    assert res.status_code == 422
+
+
+def test_upload_oversize_rejected(tmp_path: Path):
+    client = make_client(tmp_path, max_content_bytes=16)
+    res = client.post(
+        "/api/artifacts/upload?kind=log",
+        content=b"x" * 64,
+        headers={"content-type": "text/plain"},
+    )
+    assert res.status_code == 413
+
+
+def test_upload_ttl_over_max_rejected(tmp_path: Path):
+    client = make_client(tmp_path, max_ttl_minutes=60)
+    res = client.post(
+        "/api/artifacts/upload?kind=log&ttl_minutes=120",
+        content=b"x",
+        headers={"content-type": "text/plain"},
+    )
+    assert res.status_code == 400
+
+
+def test_upload_requires_api_key_when_configured(tmp_path: Path):
+    client = make_client(tmp_path, api_key="secret")
+    no_key = client.post(
+        "/api/artifacts/upload?kind=log",
+        content=b"x",
+        headers={"content-type": "text/plain"},
+    )
+    assert no_key.status_code == 401
+    with_key = client.post(
+        "/api/artifacts/upload?kind=log",
+        content=b"x",
+        headers={"content-type": "text/plain", "x-api-key": "secret"},
+    )
+    assert with_key.status_code == 201

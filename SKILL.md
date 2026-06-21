@@ -56,6 +56,48 @@ The most important fields for agents are:
 - `url`: browser URL to share.
 - `expires_at`: UTC expiration timestamp.
 
+## Upload a File Directly
+
+When you already have a file on disk, skip the JSON wrapping and stream the raw
+bytes to `POST /api/artifacts/upload`. The body *is* the content; metadata rides
+along as query parameters. This avoids reading the file into the prompt or
+escaping it into JSON, saving tokens and time.
+
+```http
+POST /api/artifacts/upload?kind=log&title=CI%20log&ttl_minutes=120
+Content-Type: text/plain
+
+<raw file bytes>
+```
+
+Query parameters:
+
+- `kind`: one of `text`, `log`, `json`, `markdown`, `image`, `report` (required).
+- `title`: display title. Optional; falls back to `filename`, then `Untitled artifact`.
+- `filename`: original file name, used as the title when `title` is omitted. Optional.
+- `ttl_minutes`: lifetime in minutes. Optional; uses the server default.
+
+How the raw body is interpreted by `kind`:
+
+- `text`, `log`, `markdown`, `report`: UTF-8 text (report HTML is sanitized on render).
+- `json`: a valid JSON document.
+- `image`: image bytes — send a matching `image/*` content type.
+
+The response is identical to `POST /api/artifacts`.
+
+```bash
+EPHEMERA_URL="${EPHEMERA_URL:-http://localhost:8000}"
+
+curl -s "$EPHEMERA_URL/api/artifacts/upload?kind=log&title=Pytest%20failure&ttl_minutes=120" \
+  -H "content-type: text/plain" \
+  "${AUTH_HEADER[@]}" \
+  --data-binary @./pytest-output.log
+```
+
+Prefer this over the JSON endpoint whenever the content is a file you can point
+`curl` at. Use `POST /api/artifacts` when you are constructing structured
+payloads (especially `json`) inline.
+
 ## Optional Authentication
 
 Some Ephemera instances require an API key for writes. Reads remain public to anyone with the artifact link.

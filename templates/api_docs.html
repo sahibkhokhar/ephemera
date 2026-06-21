@@ -42,6 +42,7 @@
       </thead>
       <tbody>
         <tr><td><code>POST</code></td><td><code>/api/artifacts</code></td><td>Create an artifact{% if auth_required %} (auth required){% endif %}. Returns its canonical URL.</td></tr>
+        <tr><td><code>POST</code></td><td><code>/api/artifacts/upload</code></td><td>Create an artifact from a raw request body — the file's bytes <em>are</em> the content{% if auth_required %} (auth required){% endif %}. Pass <code>kind</code>, optional <code>title</code>/<code>ttl_minutes</code> as query params. Returns the same JSON as above.</td></tr>
         <tr><td><code>GET</code></td><td><code>/api/artifacts/{id}</code></td><td>Fetch an artifact's full detail as JSON.</td></tr>
         <tr><td><code>GET</code></td><td><code>/a/{id}/raw</code></td><td>Same JSON detail, mirrored under the share path.</td></tr>
         <tr><td><code>GET</code></td><td><code>/a/{id}/download</code></td><td>Download the artifact as a file (source for text/log/markdown, bare JSON, sanitized report HTML, decoded image bytes). Remote image URLs redirect to the source rather than being proxied.</td></tr>
@@ -88,6 +89,39 @@
   "expires_at": "…Z",
   "url": "{{ base_url }}/a/9f2c1a7b3e4d"
 }</code></pre>
+    </div>
+  </article>
+</section>
+
+<section class="grid-2">
+  <article class="card">
+    <h2>Upload a file directly</h2>
+    <p class="muted"><code>POST /api/artifacts/upload</code></p>
+    <p class="small muted">Stream a file straight in — no JSON wrapping or escaping. The raw body becomes the content; metadata rides along as query params. Ideal for agents and CI that already have a file on disk.</p>
+    <div class="code-view" data-copy-root>
+      <div class="code-toolbar">
+        <span class="code-lang">bash</span>
+        <button class="copy-btn" type="button" data-copy>Copy</button>
+      </div>
+      <pre class="code-body"><code>curl -s "{{ base_url }}/api/artifacts/upload?kind=log&amp;title=CI+log&amp;ttl_minutes=120" \
+  -H 'content-type: text/plain' \{% if auth_required %}
+  -H 'x-api-key: $API_KEY' \{% endif %}
+  --data-binary @build.log</code></pre>
+      <textarea class="copy-source" hidden>curl -s "{{ base_url }}/api/artifacts/upload?kind=log&title=CI+log&ttl_minutes=120" -H 'content-type: text/plain'{% if auth_required %} -H 'x-api-key: $API_KEY'{% endif %} --data-binary @build.log</textarea>
+    </div>
+  </article>
+
+  <article class="card">
+    <h2>Body by kind</h2>
+    <div class="surface prose">
+      <table>
+        <thead><tr><th>kind</th><th>Raw body is…</th></tr></thead>
+        <tbody>
+          <tr><td><code>text</code>, <code>log</code>, <code>markdown</code>, <code>report</code></td><td>UTF-8 text (report HTML is sanitized on render)</td></tr>
+          <tr><td><code>json</code></td><td>a valid JSON document</td></tr>
+          <tr><td><code>image</code></td><td>image bytes; send a matching <code>image/*</code> content-type</td></tr>
+        </tbody>
+      </table>
     </div>
   </article>
 </section>

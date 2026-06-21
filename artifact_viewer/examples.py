@@ -1,7 +1,6 @@
-"""Curated example artifacts for exploring the viewer.
+"""Curated example artifacts for development and integration tests.
 
-Each :class:`Example` is a real, representative payload — the kind of output an
-agent or CI job actually produces. The home page links to these, and visiting
+Each :class:`Example` is a real, representative payload. Visiting
 ``/examples/{slug}`` materialises one as a normal, expiring artifact, so
 examples exercise exactly the same code path as anything posted through the API.
 """

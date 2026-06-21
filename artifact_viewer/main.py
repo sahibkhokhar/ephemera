@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -279,7 +279,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "auth_required": bool(settings.api_key),
                 "default_ttl_minutes": settings.default_ttl_minutes,
                 "max_ttl_minutes": settings.max_ttl_minutes,
-                "examples": EXAMPLES,
             },
         )
 
@@ -322,6 +321,95 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             content=content,
             ttl_minutes=ttl,
             metadata=payload.metadata or {},
+        )
+        return JSONResponse(artifact_summary(artifact, request), status_code=status.HTTP_201_CREATED)
+
+    async def read_capped_body(request: Request) -> bytes:
+        """Buffer the request body, refusing to exceed ``max_content_bytes``.
+
+        Both the advertised ``Content-Length`` and the actual streamed size are
+        checked, so a missing/forged length or chunked transfer can't push the
+        server past its memory cap.
+        """
+        limit = settings.max_content_bytes
+        declared = request.headers.get("content-length")
+        if declared is not None:
+            try:
+                if int(declared) > limit:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"content exceeds the limit of {humanize_bytes(limit)}",
+                    )
+            except ValueError:
+                pass
+        chunks: list[bytes] = []
+        total = 0
+        async for chunk in request.stream():
+            total += len(chunk)
+            if total > limit:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"content exceeds the limit of {humanize_bytes(limit)}",
+                )
+            chunks.append(chunk)
+        return b"".join(chunks)
+
+    @app.post("/api/artifacts/upload", status_code=status.HTTP_201_CREATED)
+    async def upload_artifact(
+        request: Request,
+        kind: Literal["text", "log", "json", "markdown", "image", "report"] = Query(
+            ..., description="Artifact kind; determines how the raw body is interpreted."
+        ),
+        title: str | None = Query(default=None, max_length=160),
+        filename: str | None = Query(default=None, max_length=255),
+        ttl_minutes: int | None = Query(default=None, ge=1),
+        _: None = Depends(require_api_key),
+    ):
+        """Create an artifact from a raw request body — the file's bytes are the
+        content, so callers stream a file straight in without JSON-wrapping it.
+        """
+        raw = await read_capped_body(request)
+        if not raw:
+            raise HTTPException(status_code=400, detail="request body is empty")
+
+        if kind == "image":
+            media_type = (request.headers.get("content-type") or "").split(";", 1)[0].strip().lower()
+            if not media_type.startswith("image/"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="image uploads require an image/* content-type header",
+                )
+            data_url = f"data:{media_type};base64," + base64.b64encode(raw).decode("ascii")
+            content: Any = {"src": data_url, "alt": title or filename or "Artifact image"}
+        elif kind == "json":
+            try:
+                text = raw.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise HTTPException(status_code=400, detail="json body must be UTF-8 encoded") from exc
+            try:
+                content = json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise HTTPException(status_code=400, detail=f"json content must be valid JSON: {exc.msg}") from exc
+        else:
+            # text / log / markdown / report: stored as text, then escaped
+            # (code surfaces) or sanitized (rich surfaces) at render time.
+            content = raw.decode("utf-8", errors="replace")
+
+        resolved_title = (title or filename or "Untitled artifact").strip() or "Untitled artifact"
+
+        ttl = ttl_minutes if ttl_minutes is not None else settings.default_ttl_minutes
+        if ttl > settings.max_ttl_minutes:
+            raise HTTPException(
+                status_code=400,
+                detail=f"ttl_minutes exceeds the maximum of {settings.max_ttl_minutes}",
+            )
+
+        artifact = store.create(
+            title=resolved_title,
+            kind=kind,
+            content=content,
+            ttl_minutes=ttl,
+            metadata={},
         )
         return JSONResponse(artifact_summary(artifact, request), status_code=status.HTTP_201_CREATED)
 
