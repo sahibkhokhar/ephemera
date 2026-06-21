@@ -11,39 +11,49 @@
     <h1>{{ artifact.title }}</h1>
     {% set download_label = 'Download JSON' if artifact.kind == 'json' else 'Download .md' if artifact.kind in ('markdown', 'report') else 'Download' %}
     <div class="artifact-actions" role="group" aria-label="Artifact actions">
-      <div class="action-group">
-        <button class="btn btn-primary btn-sm" type="button" data-copy data-copy-text="{{ canonical_url }}">Copy link</button>
-        <a class="btn btn-ghost btn-sm" href="/a/{{ artifact.id }}/download">{{ download_label }}</a>
+      <div class="action-section action-section-primary">
+        <span class="action-label">Share</span>
+        <div class="action-group">
+          <button class="btn btn-primary btn-sm" type="button" data-copy data-copy-text="{{ canonical_url }}">Copy link</button>
+          <a class="btn btn-ghost btn-sm" href="/a/{{ artifact.id }}/download">{{ download_label }}</a>
+        </div>
       </div>
 
-      <div class="action-group">
-      {% if rendered.mode == 'code' %}
-        <button class="btn btn-ghost btn-sm" type="button" data-action="toggle-wrap" aria-pressed="false">Wrap</button>
-        <button class="btn btn-ghost btn-sm" type="button" data-action="toggle-numbers" aria-pressed="true">Line numbers</button>
-        {% if artifact.kind == 'log' %}
-        <button class="btn btn-ghost btn-sm" type="button" data-action="log-highlight" aria-pressed="false">Highlight WARN/ERROR</button>
-        <button class="btn btn-ghost btn-sm" type="button" data-action="log-filter" aria-pressed="false">Only issues</button>
-        <button class="btn btn-ghost btn-sm" type="button" data-action="log-jump">Jump to first issue</button>
+      {% set has_view_actions = rendered.mode == 'code' or rendered.mode == 'image' or artifact.kind == 'report' %}
+      {% if has_view_actions %}
+      <div class="action-section action-section-view{% if artifact.kind == 'log' %} action-section-view-log{% endif %}">
+        <span class="action-label">{% if rendered.mode == 'code' %}View{% elif rendered.mode == 'image' %}Image{% else %}Document{% endif %}</span>
+        <div class="action-group">
+        {% if rendered.mode == 'code' %}
+          <button class="btn btn-ghost btn-sm" type="button" data-action="toggle-wrap" aria-pressed="false">Wrap</button>
+          <button class="btn btn-ghost btn-sm" type="button" data-action="toggle-numbers" aria-pressed="true">Line numbers</button>
+          {% if artifact.kind == 'log' %}
+          <button class="btn btn-ghost btn-sm" type="button" data-action="log-highlight" aria-pressed="false">Highlight WARN/ERROR</button>
+          <button class="btn btn-ghost btn-sm" type="button" data-action="log-filter" aria-pressed="false">Only issues</button>
+          <button class="btn btn-ghost btn-sm" type="button" data-action="log-jump">Jump to first issue</button>
+          {% endif %}
+          {% if artifact.kind == 'json' %}
+          <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy raw payload</button>
+          {% endif %}
+        {% elif rendered.mode == 'image' %}
+          <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-text="{{ rendered.image.src }}">Copy src</button>
+          <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="img-md">Copy MD image</button>
+          <button class="btn btn-ghost btn-sm" type="button" data-action="zoom" aria-pressed="false">Zoom</button>
+        {% else %}{# report #}
+          <button class="btn btn-ghost btn-sm" type="button" data-action="print">Print</button>
         {% endif %}
-        {% if artifact.kind == 'json' %}
-        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy raw payload</button>
-        {% endif %}
-      {% elif rendered.mode == 'image' %}
-        <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-text="{{ rendered.image.src }}">Copy src</button>
-        <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="img-md">Copy MD image</button>
-        <button class="btn btn-ghost btn-sm" type="button" data-action="zoom" aria-pressed="false">Zoom</button>
-      {% else %}{# rich: markdown + report #}
-        {% if artifact.kind == 'report' %}
-        <button class="btn btn-ghost btn-sm" type="button" data-action="print">Print</button>
-        {% endif %}
-      {% endif %}
+        </div>
       </div>
+      {% endif %}
 
       {% if artifact.kind not in ('markdown', 'report') %}
-      <div class="action-group">
-        <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="json">Copy JSON</button>
-        <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="markdown">Copy MD</button>
-        <a class="btn btn-ghost btn-sm" href="/a/{{ artifact.id }}/raw">Raw JSON</a>
+      <div class="action-section action-section-secondary">
+        <span class="action-label">Export</span>
+        <div class="action-group">
+          <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="json">Copy JSON</button>
+          <button class="btn btn-ghost btn-sm" type="button" data-copy data-copy-format="markdown">Copy MD</button>
+          <a class="btn btn-ghost btn-sm" href="/a/{{ artifact.id }}/raw">Raw JSON</a>
+        </div>
       </div>
       {% endif %}
     </div>
@@ -62,7 +72,9 @@
       <span class="code-stats">{{ rendered.line_count }} lines · {{ rendered.byte_count | humanbytes }}</span>
       <button class="copy-btn" type="button" data-copy>Copy</button>
     </div>
-    <pre class="code-body numbered"{% if artifact.kind == 'log' %} data-log{% endif %}><code>{% for line in rendered.lines %}<span class="ln">{{ line }}</span>{% endfor %}</code></pre>
+    <div class="code-pane">
+      <pre class="code-body numbered"{% if artifact.kind == 'log' %} data-log{% endif %}><code>{% for line in rendered.lines %}<span class="ln"><span class="ln-gutter" aria-hidden="true"></span><span class="ln-text">{{ line }}</span></span>{% endfor %}</code></pre>
+    </div>
     <textarea class="copy-source" data-format="default" hidden>{{ rendered.raw_text }}</textarea>
   </section>
 

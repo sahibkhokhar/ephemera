@@ -58,7 +58,7 @@
 }
 
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
 
 body {
   margin: 0;
@@ -279,6 +279,10 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
   text-transform: lowercase; flex-shrink: 0;
 }
 .recent-kind[data-kind="log"] { color: var(--accent-text); background: var(--accent-soft); border-color: var(--accent-line); }
+.recent-kind[data-kind="json"] { color: #e3c878; }
+.recent-kind[data-kind="markdown"] { color: #b4a5ff; }
+.recent-kind[data-kind="report"] { color: #7ddcb4; }
+.recent-kind[data-kind="image"] { color: #d9a6ec; }
 
 /* ---- code view ------------------------------------------------------- */
 
@@ -290,6 +294,7 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
   background: var(--code-bg);
 }
 .code-surface { margin-top: 0; }
+.code-pane { position: relative; }
 .code-toolbar {
   display: flex; align-items: center; gap: 12px;
   padding: 9px 14px; background: var(--bg-elev);
@@ -322,26 +327,76 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
   tab-size: 4;
   max-width: 100%;
 }
+.code-body.numbered {
+  --gutter-inset: 16px;
+  --gutter-width: 3.2em;
+  padding: 14px 16px 14px 0;
+}
 .code-body code { display: block; min-width: max-content; }
 
 .code-body .ln { display: block; white-space: pre; padding: 0 18px 0 0; }
-.code-body.is-wrapped .ln { white-space: pre-wrap; word-break: break-word; }
+.code-body .ln-gutter { display: none; }
+.code-body .ln-text { display: inline; }
+.code-body.is-wrapped:not(.numbered) .ln { white-space: pre-wrap; word-break: break-word; }
+.code-body.is-wrapped:not(.numbered) .ln-text { white-space: inherit; word-break: inherit; }
 
 .numbered { counter-reset: ln; }
-.numbered .ln { counter-increment: ln; }
-.numbered .ln::before {
-  content: counter(ln);
-  display: inline-block; width: 3.2em; margin-right: 18px; padding-right: 12px;
-  text-align: right; color: var(--code-gutter);
-  border-right: 1px solid var(--code-border);
-  position: sticky; left: 0; background: var(--code-bg);
-  user-select: none; -webkit-user-select: none;
+.numbered code {
+  display: table;
+  border-collapse: collapse;
+  min-width: 100%;
 }
-.numbered .ln:hover::before { color: #8e98b3; }
+.numbered .ln { display: table-row; }
+.numbered .ln-gutter {
+  display: table-cell;
+  counter-increment: ln;
+  width: var(--gutter-width, 3.2em);
+  padding: 0 12px 0 var(--gutter-inset, 16px);
+  text-align: right;
+  color: var(--code-gutter);
+  border-right: 1px solid var(--code-border);
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--code-bg);
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+  vertical-align: top;
+}
+.numbered .ln-gutter::before { content: counter(ln); }
+.numbered .ln-gutter:hover { color: #8e98b3; }
+.numbered .ln-text {
+  display: table-cell;
+  position: relative;
+  z-index: 1;
+  white-space: pre;
+  padding: 0 18px 0 0;
+  vertical-align: top;
+  overflow: hidden;
+}
+.code-body.numbered.is-wrapped code { display: block; min-width: 0; }
+.code-body.numbered.is-wrapped .ln { display: flex; align-items: flex-start; }
+.code-body.numbered.is-wrapped .ln-gutter {
+  display: block;
+  flex: 0 0 auto;
+  position: sticky;
+  left: 0;
+}
+.code-body.numbered.is-wrapped .ln-text {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: visible;
+}
 
 /* log highlight / filter / jump */
 .code-body.is-highlighted .ln-warn { background: rgba(217, 164, 65, 0.16); box-shadow: inset 3px 0 0 #d9a441; }
+.code-body.is-highlighted .ln-warn .ln-gutter { background: rgba(217, 164, 65, 0.16); }
 .code-body.is-highlighted .ln-error { background: rgba(180, 50, 42, 0.22); box-shadow: inset 3px 0 0 #e0655c; }
+.code-body.is-highlighted .ln-error .ln-gutter { background: rgba(180, 50, 42, 0.22); }
 .code-body.is-filtered .ln:not(.ln-issue) { display: none; }
 .ln-flash { animation: ln-flash 1.2s ease-out; }
 @keyframes ln-flash {
@@ -494,7 +549,41 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
 .meta-dot::before { content: ""; width: 3px; height: 3px; border-radius: 50%; background: var(--text-faint); margin-right: 10px; }
 .artifact-head h1 { font-size: clamp(1.6rem, 3vw, 2.1rem); margin: 0; color: #f4f6fa; overflow-wrap: anywhere; }
 
-.artifact-actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px; }
+/* live expiry pill on artifact header */
+.artifact-tags .meta-dot[data-expires] {
+  gap: 6px; padding: 4px 11px; border-radius: 999px; font-weight: 600;
+  color: var(--accent-text); background: var(--accent-soft); border: 1px solid var(--accent-line);
+}
+.artifact-tags .meta-dot[data-expires]::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%; margin-right: 0;
+  background: var(--accent); animation: eph-pulse 2s ease-in-out infinite;
+}
+.artifact-tags .meta-dot[data-expires].is-expired {
+  color: var(--text-soft); background: var(--surface-soft); border-color: var(--border);
+}
+.artifact-tags .meta-dot[data-expires].is-expired::before { background: var(--text-faint); animation: none; }
+
+.artifact-actions {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px;
+}
+/* Share + Export stack left, View fills right — fits log toolbars without clipping */
+.artifact-actions:has(.action-section-view):has(.action-section-secondary) {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 10px;
+  align-items: start;
+}
+.artifact-actions:has(.action-section-view):has(.action-section-secondary) .action-section-primary {
+  grid-column: 1; grid-row: 1;
+}
+.artifact-actions:has(.action-section-view):has(.action-section-secondary) .action-section-secondary {
+  grid-column: 1; grid-row: 2;
+}
+.artifact-actions:has(.action-section-view):has(.action-section-secondary) .action-section-view {
+  grid-column: 2; grid-row: 1 / span 2;
+  min-width: 0;
+}
 .action-section {
   display: flex; flex-direction: column; gap: 7px; min-width: 0;
   padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -509,7 +598,22 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
   font-family: var(--mono); font-size: 10.5px; font-weight: 700; line-height: 1;
   letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint);
 }
-.action-group { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.action-group { display: flex; flex-wrap: nowrap; align-items: center; gap: 7px; }
+.action-section-view-log .action-group {
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  gap: 7px;
+}
+.artifact-actions .btn[aria-pressed]::after {
+  content: "\2713";
+  font-weight: 700;
+  margin-left: 0.3em;
+  width: 0.65em;
+  display: inline-block;
+  text-align: center;
+  opacity: 0;
+}
+.artifact-actions .btn[aria-pressed="true"]::after { opacity: 1; }
 .action-section .btn-sm { height: 32px; padding: 0 12px; }
 .artifact-actions .btn-ghost { border-color: var(--border); }
 .artifact-actions .btn-ghost:hover { border-color: var(--border-strong); }
@@ -605,7 +709,14 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
   .card { padding: 20px; }
   .example-grid { grid-template-columns: 1fr; }
   .artifact-actions { flex-direction: column; }
+  .artifact-actions:has(.action-section-view):has(.action-section-secondary) {
+    display: flex; flex-direction: column;
+  }
   .action-section, .action-group { width: 100%; }
+  .artifact-actions .action-group { flex-wrap: wrap; }
+  .action-section-view-log .action-group {
+    display: flex; flex-wrap: wrap;
+  }
   .artifact-actions .btn { flex: 1 1 auto; min-width: min(100%, 132px); }
   .recent-item { grid-template-columns: auto 1fr; align-items: start; }
   .recent-ttl { grid-column: 2; justify-self: start; }
@@ -627,7 +738,8 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
   .example-card { padding: 16px; }
   .example-open { opacity: 1; }
   .code-body { padding: 12px 14px; font-size: 12.5px; }
-  .numbered .ln::before { width: 2.7em; margin-right: 12px; padding-right: 10px; }
+  .code-body.numbered { --gutter-inset: 14px; --gutter-width: 2.7em; padding: 12px 14px 12px 0; }
+  .numbered .ln-gutter { padding-right: 10px; }
   .artifact-tags { gap: 7px; }
   .meta-dot::before { margin-right: 7px; }
   .artifact-actions .btn { flex-basis: 100%; }
