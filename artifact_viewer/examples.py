@@ -1,10 +1,9 @@
-"""Curated example artifacts used to showcase the viewer on the landing page.
+"""Curated example artifacts for exploring the viewer.
 
 Each :class:`Example` is a real, representative payload — the kind of output an
-agent or CI job actually produces — so the gallery demonstrates the product
-instead of showing filler. Visiting ``/examples/{slug}`` materialises one as a
-normal, expiring artifact, so examples exercise exactly the same code path as
-anything posted through the API.
+agent or CI job actually produces. The home page links to these, and visiting
+``/examples/{slug}`` materialises one as a normal, expiring artifact, so
+examples exercise exactly the same code path as anything posted through the API.
 """
 
 from __future__ import annotations

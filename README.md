@@ -7,7 +7,7 @@ Post a payload, get back a short-lived URL, and open it in a clean browser view.
 ## Features
 
 - Temporary share URLs for logs, text, JSON, markdown, images, and HTML-style reports
-- Server-rendered UI with recent artifacts, example artifacts, copy buttons, downloads, and mobile-friendly pages
+- Server-rendered instance dashboard with recent artifacts, curated example links, copy buttons, downloads, and mobile-friendly pages
 - Log viewer with line numbers, wrapping, issue highlighting, filtering, and jump-to-first-issue
 - Pretty JSON rendering and raw JSON endpoints for automation
 - Markdown rendering with tables, fenced code blocks, and task lists
@@ -26,7 +26,7 @@ uv run uvicorn artifact_viewer.main:app --host 0.0.0.0 --port 8000
 
 Open `http://127.0.0.1:8000`, or use `http://<your-lan-ip>:8000` from another device on the same network.
 
-The landing page includes live example artifacts, so you can try every renderer before posting your own payload.
+The home page is your instance dashboard: live stats, recent artifacts, and API quickstart. Use the **Example artifacts** list to open curated demos for every renderer (`/examples/{slug}`), or `/demo` for a single rich markdown sample.
 
 ## Docker
 

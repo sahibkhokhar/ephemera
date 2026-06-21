@@ -3,23 +3,28 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
+  <meta name="color-scheme" content="dark">
   <meta name="robots" content="noindex, nofollow">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/styles.css">
   <script src="/static/app.js" defer></script>
+  <script src="/static/ttl-countdown.js" defer></script>
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <header class="topbar">
     <div class="wrap topbar-inner">
-      <a class="brand" href="/">
-        <span class="brand-mark" aria-hidden="true">{</span>
-        <span class="brand-name">{{ app_name }}</span>
-      </a>
+      <div class="topbar-brand">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true">~</span>
+          <span class="brand-name">{{ app_name }}</span>
+        </a>
+        <span class="instance-badge"><span class="instance-badge-dot"></span>this instance</span>
+      </div>
       <nav class="topnav">
-        <a href="/demo">Demo</a>
-        <a href="/api/docs">API</a>
+        <a href="/demo">demo</a>
+        <a href="/api/docs">api</a>
+        <a class="topnav-accent" href="https://github.com/sahibkhokhar/ephemera">github ↗</a>
       </nav>
     </div>
   </header>

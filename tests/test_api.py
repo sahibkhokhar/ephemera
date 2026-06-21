@@ -239,13 +239,25 @@ def test_openapi_schema_served(client: TestClient):
 # ---- examples gallery ----------------------------------------------------
 
 
-def test_index_shows_example_gallery(client: TestClient):
+def test_index_shows_instance_dashboard(client: TestClient):
     res = client.get("/")
     assert res.status_code == 200
-    # every curated example is advertised with a clickable opener
+    assert "Your Ephemera instance" in res.text
+    assert "Recent artifacts" in res.text
+    assert "Example artifacts" in res.text
+    assert "Create an artifact" in res.text
+    assert "POST /api/artifacts" in res.text
+    assert "default TTL" in res.text
     for ex in EXAMPLES:
         assert f"/examples/{ex.slug}" in res.text
         assert ex.title in res.text
+
+
+def test_artifact_page_live_expiry(client: TestClient):
+    artifact_id = create(client, kind="log", content="line 1").json()["id"]
+    res = client.get(f"/a/{artifact_id}")
+    assert res.status_code == 200
+    assert 'data-expires="' in res.text
 
 
 @pytest.mark.parametrize("slug", [ex.slug for ex in EXAMPLES])

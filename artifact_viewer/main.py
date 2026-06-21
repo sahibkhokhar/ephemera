@@ -77,19 +77,19 @@ def build_url(request: Request, path: str, base_url: str | None) -> str:
 
 
 def humanize_remaining(expires_at: datetime) -> str:
-    seconds = (expires_at - datetime.now(timezone.utc)).total_seconds()
+    seconds = int((expires_at - datetime.now(timezone.utc)).total_seconds())
     if seconds <= 0:
         return "expired"
-    minutes = int(seconds // 60)
-    if minutes < 1:
-        return "under a minute"
-    if minutes < 60:
-        return f"{minutes} min"
-    hours = minutes / 60
-    if hours < 24:
-        return f"{hours:.0f} hr" if hours >= 2 else "1 hr"
-    days = hours / 24
-    return f"{days:.0f} days" if days >= 2 else "1 day"
+    days = seconds // 86400
+    hours = (seconds % 86400) // 3600
+    minutes = (seconds % 3600) // 60
+    if days > 0:
+        return f"{days}d {hours}h" if hours else f"{days}d"
+    if hours > 0:
+        return f"{hours}h {minutes}m" if minutes else f"{hours}h"
+    if minutes > 0:
+        return f"{minutes}m"
+    return f"{seconds}s"
 
 
 def humanize_bytes(num: int) -> str:
@@ -116,11 +116,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
     templates.env.globals.update(
         app_name=settings.app_name,
-        kind_labels=KIND_LABELS,
     )
     templates.env.filters["remaining"] = humanize_remaining
     templates.env.filters["humanbytes"] = humanize_bytes
-    templates.env.filters["kindlabel"] = lambda k: KIND_LABELS.get(k, k.title())
     templates.env.filters["b64"] = lambda s: base64.b64encode(str(s).encode("utf-8")).decode("ascii")
 
     stop_event = threading.Event()
@@ -279,7 +277,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "count": store.count(),
                 "base_url": settings.base_url or str(request.base_url).rstrip("/"),
                 "auth_required": bool(settings.api_key),
-                "kinds": list(KIND_LABELS.keys()),
+                "default_ttl_minutes": settings.default_ttl_minutes,
+                "max_ttl_minutes": settings.max_ttl_minutes,
                 "examples": EXAMPLES,
             },
         )

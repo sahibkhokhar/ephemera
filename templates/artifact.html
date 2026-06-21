@@ -4,8 +4,8 @@
 <article class="artifact" data-copy-root>
   <header class="artifact-head">
     <div class="artifact-tags">
-      <span class="recent-kind" data-kind="{{ artifact.kind }}">{{ artifact.kind | kindlabel }}</span>
-      <span class="meta-dot">expires in {{ artifact.expires_at | remaining }}</span>
+      <span class="recent-kind" data-kind="{{ artifact.kind }}">{{ artifact.kind }}</span>
+      <span class="meta-dot" data-expires="{{ artifact.expires_at.isoformat() }}" data-suffix="">expires in {{ artifact.expires_at | remaining }}</span>
       <span class="meta-dot">{{ artifact.id }}</span>
     </div>
     <h1>{{ artifact.title }}</h1>
@@ -96,7 +96,7 @@
     <dl class="meta-grid">
       <div><dt>Created</dt><dd>{{ artifact.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd></div>
       <div><dt>Expires</dt><dd>{{ artifact.expires_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd></div>
-      <div><dt>Kind</dt><dd>{{ artifact.kind | kindlabel }}</dd></div>
+      <div><dt>Kind</dt><dd>{{ artifact.kind }}</dd></div>
       {% if artifact.metadata.get('source') %}<div><dt>Source</dt><dd>{{ artifact.metadata['source'] }}</dd></div>{% endif %}
     </dl>
     <p class="muted small">This link is temporary. When it expires the page and its data are removed.</p>
