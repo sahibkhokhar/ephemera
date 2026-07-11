@@ -68,6 +68,38 @@
     });
   }
 
+  // ---- theme ------------------------------------------------------------
+
+  var THEME_KEY = "ephemera-theme";
+
+  function preferredTheme() {
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches
+      ? "light" : "dark";
+  }
+
+  function currentTheme() {
+    return document.documentElement.dataset.theme || preferredTheme();
+  }
+
+  function updateThemeControl() {
+    var theme = currentTheme();
+    var controls = document.querySelectorAll("[data-theme-toggle]");
+    for (var i = 0; i < controls.length; i++) {
+      var control = controls[i];
+      var next = theme === "dark" ? "light" : "dark";
+      control.setAttribute("aria-pressed", theme === "light" ? "true" : "false");
+      control.setAttribute("aria-label", "Switch to " + next + " mode");
+      var label = control.querySelector("[data-theme-label]");
+      if (label) label.textContent = next + " mode";
+    }
+  }
+
+  function setTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    try { window.localStorage.setItem(THEME_KEY, theme); } catch (error) {}
+    updateThemeControl();
+  }
+
   // ---- log issues: ribbon + minimap --------------------------------------
 
   var WARN_RE = /\bWARN(?:ING)?\b/i;
@@ -218,6 +250,12 @@
   // ---- wiring ------------------------------------------------------------
 
   document.addEventListener("click", function (event) {
+    var themeToggle = event.target.closest("[data-theme-toggle]");
+    if (themeToggle) {
+      event.preventDefault();
+      setTheme(currentTheme() === "dark" ? "light" : "dark");
+      return;
+    }
     var toggle = event.target.closest("[data-overflow-toggle]");
     if (toggle) {
       event.preventDefault();
@@ -260,6 +298,7 @@
   });
 
   function init() {
+    updateThemeControl();
     var logs = document.querySelectorAll(".code-body[data-log]");
     for (var i = 0; i < logs.length; i++) {
       var body = logs[i];

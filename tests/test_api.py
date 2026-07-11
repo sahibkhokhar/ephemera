@@ -119,6 +119,25 @@ def test_security_headers_present(client: TestClient):
     assert res.headers["x-frame-options"] == "DENY"
 
 
+def test_theme_assets_are_self_hosted_and_prepaint_safe(client: TestClient):
+    html = client.get("/").text
+    assert '<script src="/static/theme.js"></script>' in html
+    assert '<script src="/static/app.js" defer></script>' in html
+    assert 'data-theme-toggle' in html
+    assert 'name="color-scheme" content="dark light"' in html
+    theme = client.get("/static/theme.js")
+    assert theme.status_code == 200
+    assert 'localStorage.getItem' in theme.text
+    assert "script-src 'self'" in client.get("/").headers["content-security-policy"]
+
+
+@pytest.mark.parametrize("path", ["/", "/api/docs", "/a/doesnotexist"])
+def test_theme_toggle_is_available_on_all_html_page_types(client: TestClient, path):
+    html = client.get(path).text
+    assert 'data-theme-toggle' in html
+    assert 'href="/static/styles.css"' in html
+
+
 # ---- limits & validation -------------------------------------------------
 
 
