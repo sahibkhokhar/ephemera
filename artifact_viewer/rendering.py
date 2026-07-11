@@ -14,6 +14,8 @@ Two design rules drive this module:
 from __future__ import annotations
 
 import json
+import html
+import re
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -40,6 +42,8 @@ ALLOWED_PROTOCOLS = ["http", "https", "data", "mailto"]
 
 CodeLanguage = Literal["text", "log", "json"]
 
+TEXTUAL_KINDS = frozenset({"text", "log", "json", "markdown", "report"})
+
 
 @dataclass(slots=True)
 class RenderedArtifact:
@@ -57,6 +61,33 @@ class RenderedArtifact:
 
 def pretty_json(value: Any) -> str:
     return json.dumps(value, indent=2, ensure_ascii=False, sort_keys=True)
+
+
+def source_text(kind: str, content: Any) -> str:
+    """Return the source representation used by code and diff views."""
+    if kind == "json":
+        return pretty_json(content)
+    return str(content)
+
+
+def highlight_line(line: str, kind: str) -> str:
+    """Escape an untrusted source line and add small, dependency-free tokens."""
+    escaped = html.escape(line, quote=False)
+    if kind == "json":
+        pattern = re.compile(r'".*?"(?=\s*:)|".*?"|\b(?:true|false|null)\b|-?\b\d+(?:\.\d+)?\b')
+
+        def token(match: re.Match[str]) -> str:
+            value = match.group(0)
+            if value.startswith('"'):
+                cls = "diff-token-key" if re.match(r'".*"\s*:', value) else "diff-token-string"
+            elif value in {"true", "false", "null"}:
+                cls = "diff-token-literal"
+            else:
+                cls = "diff-token-number"
+            return f'<span class="{cls}">{value}</span>'
+
+        return pattern.sub(token, escaped)
+    return escaped
 
 
 def sanitize_html(value: str) -> str:
