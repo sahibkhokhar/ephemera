@@ -47,6 +47,18 @@
       <span class="code-lang">{{ rendered.language }}</span>
       <span class="code-stats">{{ rendered.line_count }} lines · {{ rendered.byte_count | humanbytes }}</span>
       {% if artifact.kind == 'log' %}
+      <div class="log-filter" data-log-filter role="search" aria-label="Filter log lines">
+        <label class="sr-only" for="log-filter-input">Filter log lines</label>
+        <input id="log-filter-input" class="log-filter-input" type="search"
+               data-filter-input placeholder="filter lines…" autocomplete="off"
+               spellcheck="false">
+        <button class="log-filter-button" type="button" data-filter-prev
+                aria-label="Previous matching line" disabled>↑</button>
+        <button class="log-filter-button" type="button" data-filter-next
+                aria-label="Next matching line" disabled>↓</button>
+        <button class="log-filter-clear" type="button" data-filter-clear hidden>clear</button>
+        <span class="log-filter-status" data-filter-status aria-live="polite">all lines</span>
+      </div>
       {# Issue chips are injected here by app.js once WARN/ERROR lines are counted. #}
       <div class="ribbon" data-ribbon></div>
       {% endif %}

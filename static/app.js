@@ -73,6 +73,109 @@
   var WARN_RE = /\bWARN(?:ING)?\b/i;
   var ERROR_RE = /\b(?:ERROR|FATAL|FAILED|FAILURE)\b/i;
 
+  function highlight(textEl, ranges) {
+    var text = textEl.textContent;
+    textEl.textContent = "";
+    var cursor = 0;
+    for (var i = 0; i < ranges.length; i++) {
+      var range = ranges[i];
+      if (range.start > cursor) textEl.appendChild(document.createTextNode(text.slice(cursor, range.start)));
+      var mark = document.createElement("mark");
+      mark.className = "log-match";
+      mark.textContent = text.slice(range.start, range.end);
+      textEl.appendChild(mark);
+      cursor = range.end;
+    }
+    if (cursor < text.length) textEl.appendChild(document.createTextNode(text.slice(cursor)));
+  }
+
+  function initLogFilter(body) {
+    var view = body.closest(".code-view");
+    var filter = view && view.querySelector("[data-log-filter]");
+    if (!filter || !window.EphemeraLogFilter) return;
+    var input = filter.querySelector("[data-filter-input]");
+    var status = filter.querySelector("[data-filter-status]");
+    var clear = filter.querySelector("[data-filter-clear]");
+    var previous = filter.querySelector("[data-filter-prev]");
+    var next = filter.querySelector("[data-filter-next]");
+    var lines = Array.prototype.slice.call(body.querySelectorAll(".ln"));
+    var current = -1;
+    var matchingLines = [];
+
+    function resetHighlights() {
+      for (var i = 0; i < lines.length; i++) {
+        var textEl = lines[i].querySelector(".ln-text");
+        var text = textEl.textContent;
+        textEl.textContent = text;
+        lines[i].classList.remove("ln-search-match");
+      }
+    }
+
+    function updateStatus(label) {
+      status.textContent = label;
+      var enabled = matchingLines.length > 0;
+      previous.disabled = !enabled;
+      next.disabled = !enabled;
+      clear.hidden = !input.value;
+    }
+
+    function apply() {
+      var queryText = input.value;
+      var query = window.EphemeraLogFilter.parse(queryText);
+      resetHighlights();
+      matchingLines = [];
+      current = -1;
+      if (!queryText) {
+        for (var i = 0; i < lines.length; i++) lines[i].hidden = false;
+        updateStatus("all lines");
+        return;
+      }
+      if (query.type === "invalid") {
+        for (var j = 0; j < lines.length; j++) lines[j].hidden = false;
+        updateStatus(query.error);
+        return;
+      }
+      for (var k = 0; k < lines.length; k++) {
+        var textEl = lines[k].querySelector(".ln-text");
+        var ranges = window.EphemeraLogFilter.matches(textEl.textContent, query);
+        lines[k].hidden = ranges.length === 0;
+        if (ranges.length) {
+          lines[k].classList.add("ln-search-match");
+          highlight(textEl, ranges);
+          matchingLines.push(lines[k]);
+        }
+      }
+      var occurrences = 0;
+      for (var m = 0; m < matchingLines.length; m++) {
+        occurrences += window.EphemeraLogFilter.matches(matchingLines[m].textContent, query).length;
+      }
+      updateStatus(occurrences + " match" + (occurrences === 1 ? "" : "es") +
+        " · " + matchingLines.length + " line" + (matchingLines.length === 1 ? "" : "s"));
+    }
+
+    function move(step) {
+      if (!matchingLines.length) return;
+      current = (current + step + matchingLines.length) % matchingLines.length;
+      jumpTo(matchingLines[current]);
+    }
+
+    input.addEventListener("input", apply);
+    previous.addEventListener("click", function () { move(-1); });
+    next.addEventListener("click", function () { move(1); });
+    clear.addEventListener("click", function () {
+      input.value = "";
+      input.focus();
+      apply();
+    });
+    body.addEventListener("keydown", function (event) {
+      if ((event.key === "n" || event.key === "N") && document.activeElement !== input && matchingLines.length) {
+        event.preventDefault();
+        move(event.key === "n" ? 1 : -1);
+      }
+    });
+    apply();
+  }
+
   // Tag each WARN/ERROR line and collect their positions for ribbon + minimap.
   function scanLog(body) {
     var lines = body.querySelectorAll(".ln");
@@ -264,6 +367,7 @@
     for (var i = 0; i < logs.length; i++) {
       var body = logs[i];
       var scan = scanLog(body);
+      initLogFilter(body);
       var pane = body.closest(".code-pane") || body.parentNode;
       var view = body.closest(".code-view");
       var ribbon = view && view.querySelector("[data-ribbon]");
