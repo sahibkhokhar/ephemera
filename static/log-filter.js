@@ -37,6 +37,47 @@
     return { value: value, offsets: offsets };
   }
 
+  function topLevelAlternatives(source) {
+    var alternatives = [];
+    var start = 0;
+    var depth = 0;
+    var inClass = false;
+    var escaped = false;
+    for (var i = 0; i < source.length; i++) {
+      var character = source.charAt(i);
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === "[" && !inClass) {
+        inClass = true;
+      } else if (character === "]" && inClass) {
+        inClass = false;
+      } else if (!inClass && character === "(") {
+        depth++;
+      } else if (!inClass && character === ")") {
+        depth--;
+      } else if (!inClass && depth === 0 && character === "|") {
+        alternatives.push(source.slice(start, i));
+        start = i + 1;
+      }
+    }
+    if (!alternatives.length) return [source];
+    alternatives.push(source.slice(start));
+    return alternatives;
+  }
+
+  function nextConsumingMatch(regex, text, from) {
+    var match;
+    var position = from;
+    while (position <= text.length && (match = regex.exec(text)) !== null) {
+      if (match[0].length) return match;
+      position = match.index + 1;
+      regex.lastIndex = position;
+    }
+    return null;
+  }
+
   function matches(text, query) {
     if (!query || query.type === "invalid" || query.type === "empty") return [];
     if (query.type === "substring") {
@@ -54,10 +95,19 @@
     }
 
     var result = [];
-    var match;
-    while ((match = query.value.exec(text)) !== null) {
-      if (match[0].length) result.push({ start: match.index, end: match.index + match[0].length });
-      else query.value.lastIndex++;
+    var alternatives = topLevelAlternatives(query.value.source);
+    var position = 0;
+    while (position <= text.length) {
+      var next = null;
+      for (var i = 0; i < alternatives.length; i++) {
+        var regex = new RegExp(alternatives[i], "gi");
+        regex.lastIndex = position;
+        var candidate = nextConsumingMatch(regex, text, position);
+        if (candidate && (!next || candidate.index < next.index)) next = candidate;
+      }
+      if (!next) break;
+      result.push({ start: next.index, end: next.index + next[0].length });
+      position = next.index + next[0].length;
     }
     query.value.lastIndex = 0;
     return result;
