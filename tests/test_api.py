@@ -47,6 +47,84 @@ def test_view_text_artifact_shows_content(client: TestClient):
     assert "hello" in view.text and "world" in view.text
 
 
+def test_diff_api_returns_unified_diff_for_same_kind(client: TestClient):
+    left = create(client, kind="text", title="before", content="same\nremoved\n").json()["id"]
+    right = create(client, kind="text", title="after", content="same\nadded\n").json()["id"]
+    res = client.post("/api/artifacts/diff", json={"a": left, "b": right})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["kind"] == "text"
+    assert body["a"]["id"] == left and body["b"]["id"] == right
+    assert body["changed"] is True
+    assert "-removed" in body["diff"] and "+added" in body["unified_diff"]
+
+
+def test_diff_stats_count_content_lines_that_look_like_file_headers(client: TestClient):
+    left = create(client, content="---\nkeep\n").json()["id"]
+    right = create(client, content="+++\nkeep\n").json()["id"]
+    body = client.post("/api/artifacts/diff", json={"a": left, "b": right}).json()
+    assert body["additions"] == 1
+    assert body["deletions"] == 1
+    assert "\n----\n" in body["diff"]
+    assert "\n++++\n" in body["diff"]
+
+
+def test_diff_view_uses_zero_start_for_empty_hunk_side(client: TestClient):
+    left = create(client, content="").json()["id"]
+    right = create(client, content="new\n").json()["id"]
+    res = client.get(f"/diff?a={left}&b={right}")
+    assert res.status_code == 200
+    assert "@@ -0,0 +1,1 @@" in res.text
+
+
+def test_diff_view_escapes_untrusted_content(client: TestClient):
+    left = create(client, content="safe\n").json()["id"]
+    right = create(client, content="</code><script>alert(1)</script>\n").json()["id"]
+    res = client.get(f"/diff?a={left}&b={right}")
+    assert res.status_code == 200
+    assert "&lt;/code&gt;&lt;script&gt;alert(1)&lt;/script&gt;" in res.text
+    assert "<script>alert(1)</script>" not in res.text
+
+
+def test_diff_view_renders_split_and_unified_controls(client: TestClient):
+    left = create(client, kind="json", content={"value": 1}).json()["id"]
+    right = create(client, kind="json", content={"value": 2}).json()["id"]
+    res = client.get(f"/diff?a={left}&b={right}")
+    assert res.status_code == 200
+    assert 'data-diff-tab="split"' in res.text
+    assert 'data-diff-tab="unified"' in res.text
+    assert '<span class="diff-token-key">"value":</span>' in res.text
+    assert '<span class="diff-token-string">"value"</span>' not in res.text
+    assert "script-src 'self'" in res.headers["content-security-policy"]
+
+
+@pytest.mark.parametrize("path, payload, expected", [
+    ("/api/artifacts/diff", {"a": "missing", "b": "also-missing"}, 404),
+    ("/api/artifacts/diff", {"a": "same", "b": "same"}, 400),
+])
+def test_diff_api_rejects_missing_or_identical_ids(client: TestClient, path, payload, expected):
+    assert client.post(path, json=payload).status_code == expected
+
+
+def test_diff_rejects_mismatched_and_non_textual_kinds(client: TestClient):
+    text_id = create(client, kind="text", content="x").json()["id"]
+    log_id = create(client, kind="log", content="x").json()["id"]
+    image_id = create(client, kind="image", content={"src": "https://example.test/a.png"}).json()["id"]
+    assert client.post("/api/artifacts/diff", json={"a": text_id, "b": log_id}).status_code == 422
+    assert client.post("/api/artifacts/diff", json={"a": text_id, "b": image_id}).status_code == 422
+    assert client.get(f"/diff?a={text_id}&b={log_id}").status_code == 422
+
+
+def test_diff_treats_expired_artifact_as_missing(client: TestClient):
+    left = create(client, kind="text", content="x").json()["id"]
+    right = create(client, kind="text", content="y").json()["id"]
+    store = client.app.state.store
+    with store._connect() as conn:
+        conn.execute("UPDATE artifacts SET expires_at = '2000-01-01T00:00:00Z' WHERE id = ?", (left,))
+        conn.commit()
+    assert client.post("/api/artifacts/diff", json={"a": left, "b": right}).status_code == 404
+
+
 def test_raw_and_detail_endpoints(client: TestClient):
     artifact_id = create(client, kind="text", content="payload").json()["id"]
     raw = client.get(f"/a/{artifact_id}/raw")

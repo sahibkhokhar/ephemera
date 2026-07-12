@@ -44,6 +44,8 @@
         <tr><td><code>POST</code></td><td><code>/api/artifacts</code></td><td>Create an artifact{% if auth_required %} (auth required){% endif %}. Returns its canonical URL.</td></tr>
         <tr><td><code>POST</code></td><td><code>/api/artifacts/upload</code></td><td>Create an artifact from a raw request body — the file's bytes <em>are</em> the content{% if auth_required %} (auth required){% endif %}. Pass <code>kind</code>, optional <code>title</code>/<code>ttl_minutes</code> as query params. Returns the same JSON as above.</td></tr>
         <tr><td><code>GET</code></td><td><code>/api/artifacts/{id}</code></td><td>Fetch an artifact's full detail as JSON.</td></tr>
+        <tr><td><code>POST</code></td><td><code>/api/artifacts/diff</code></td><td>Compare two artifacts of the same textual kind. Send JSON with <code>a</code> and <code>b</code> IDs; returns a server-generated unified diff and change counts.</td></tr>
+        <tr><td><code>GET</code></td><td><code>/diff?a={id1}&amp;b={id2}</code></td><td>Human-readable side-by-side comparison with a unified/split toggle.</td></tr>
         <tr><td><code>GET</code></td><td><code>/a/{id}/raw</code></td><td>Same JSON detail, mirrored under the share path.</td></tr>
         <tr><td><code>GET</code></td><td><code>/a/{id}/download</code></td><td>Download the artifact as a file (source for text/log/markdown, bare JSON, sanitized report HTML, decoded image bytes). Remote image URLs redirect to the source rather than being proxied.</td></tr>
         <tr><td><code>GET</code></td><td><code>/a/{id}</code></td><td>Human-readable HTML view of an artifact.</td></tr>

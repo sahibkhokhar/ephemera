@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import difflib
 import json
 import secrets
 import threading
@@ -19,7 +20,7 @@ from pydantic import BaseModel, Field, field_validator
 from .config import Settings
 from .download import DownloadError, build_download
 from .examples import EXAMPLES, EXAMPLES_BY_SLUG
-from .rendering import render_artifact
+from .rendering import TEXTUAL_KINDS, highlight_line, render_artifact, source_text
 from .store import Artifact, ArtifactStore
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -62,8 +63,29 @@ class ArtifactCreateRequest(BaseModel):
         return value or {}
 
 
+class ArtifactDiffRequest(BaseModel):
+    a: str = Field(min_length=1, max_length=128)
+    b: str = Field(min_length=1, max_length=128)
+
+
 def iso_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def diff_stats(unified: str) -> tuple[int, int]:
+    """Count changed content lines, excluding only the two file headers."""
+    lines = unified.splitlines()
+    body = lines[2:] if len(lines) >= 2 else []
+    additions = sum(1 for line in body if line.startswith("+"))
+    deletions = sum(1 for line in body if line.startswith("-"))
+    return additions, deletions
+
+
+def hunk_range(start: int, end: int) -> str:
+    """Format a zero-based half-open range using unified-diff conventions."""
+    count = end - start
+    first = start + 1 if count else start
+    return f"{first},{count}"
 
 
 def iso(dt: datetime) -> str:
@@ -243,6 +265,73 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             lines.extend(["", "```text", source, "```"])
         return "\n".join(lines).rstrip() + "\n"
 
+    def get_diff_pair(a_id: str, b_id: str) -> tuple[Artifact, Artifact]:
+        if a_id == b_id:
+            raise HTTPException(status_code=400, detail="choose two different artifacts")
+        first = store.get(a_id)
+        second = store.get(b_id)
+        if first is None or second is None:
+            raise HTTPException(status_code=404, detail="one or both artifacts were not found or have expired")
+        if first.kind not in TEXTUAL_KINDS or second.kind not in TEXTUAL_KINDS:
+            raise HTTPException(status_code=422, detail="only textual artifacts can be compared")
+        if first.kind != second.kind:
+            raise HTTPException(status_code=422, detail="artifacts must have the same textual kind")
+        return first, second
+
+    def diff_payload(first: Artifact, second: Artifact, request: Request) -> dict[str, Any]:
+        first_text = source_text(first.kind, first.content)
+        second_text = source_text(second.kind, second.content)
+        unified = "".join(
+            difflib.unified_diff(
+                first_text.splitlines(keepends=True),
+                second_text.splitlines(keepends=True),
+                fromfile=f"a/{first.id}",
+                tofile=f"b/{second.id}",
+            )
+        )
+        additions, deletions = diff_stats(unified)
+        return {
+            "a": artifact_summary(first, request),
+            "b": artifact_summary(second, request),
+            "kind": first.kind,
+            "changed": first_text != second_text,
+            "additions": additions,
+            "deletions": deletions,
+            "diff": unified,
+            "unified_diff": unified,
+        }
+
+    def diff_rows(first: Artifact, second: Artifact) -> list[dict[str, Any]]:
+        left = source_text(first.kind, first.content).splitlines()
+        right = source_text(second.kind, second.content).splitlines()
+        rows: list[dict[str, Any]] = []
+        matcher = difflib.SequenceMatcher(a=left, b=right, autojunk=False)
+        for group in matcher.get_grouped_opcodes(n=3):
+            start_a, start_b = group[0][1], group[0][3]
+            end_a, end_b = group[-1][4], group[-1][5]
+            rows.append({"hunk": f"@@ -{hunk_range(start_a, end_a)} +{hunk_range(start_b, end_b)} @@"})
+            for tag, i1, i2, j1, j2 in group:
+                if tag == "equal":
+                    for offset, line in enumerate(left[i1:i2]):
+                        rows.append({"type": "context", "old_no": i1 + offset + 1, "new_no": j1 + offset + 1,
+                                     "old": highlight_line(line, first.kind), "new": highlight_line(line, first.kind)})
+                elif tag == "delete":
+                    for offset, line in enumerate(left[i1:i2]):
+                        rows.append({"type": "delete", "old_no": i1 + offset + 1, "new_no": "", "old": highlight_line(line, first.kind), "new": ""})
+                elif tag == "insert":
+                    for offset, line in enumerate(right[j1:j2]):
+                        rows.append({"type": "insert", "old_no": "", "new_no": j1 + offset + 1, "old": "", "new": highlight_line(line, first.kind)})
+                else:
+                    width = max(i2 - i1, j2 - j1)
+                    for offset in range(width):
+                        old_line = left[i1 + offset] if i1 + offset < i2 else None
+                        new_line = right[j1 + offset] if j1 + offset < j2 else None
+                        rows.append({"type": "replace", "old_no": i1 + offset + 1 if old_line is not None else "",
+                                     "new_no": j1 + offset + 1 if new_line is not None else "",
+                                     "old": highlight_line(old_line, first.kind) if old_line is not None else "",
+                                     "new": highlight_line(new_line, first.kind) if new_line is not None else ""})
+        return rows
+
     def normalize_content(payload: ArtifactCreateRequest) -> Any:
         content = payload.content
         if payload.kind == "json" and isinstance(content, str):
@@ -413,12 +502,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         return JSONResponse(artifact_summary(artifact, request), status_code=status.HTTP_201_CREATED)
 
+    @app.post("/api/artifacts/diff")
+    def compare_artifacts(payload: ArtifactDiffRequest, request: Request):
+        first, second = get_diff_pair(payload.a, payload.b)
+        return diff_payload(first, second, request)
+
     @app.get("/api/artifacts/{artifact_id}")
     def get_artifact_api(artifact_id: str, request: Request):
         artifact = store.get(artifact_id)
         if artifact is None:
             raise HTTPException(status_code=404, detail="artifact not found or expired")
         return artifact_detail(artifact, request)
+
+    @app.get("/diff", response_class=HTMLResponse, include_in_schema=False)
+    def diff_view(request: Request, a: str = Query(..., min_length=1, max_length=128), b: str = Query(..., min_length=1, max_length=128)):
+        first, second = get_diff_pair(a, b)
+        return templates.TemplateResponse(
+            request,
+            "diff.html",
+            {
+                "a": first,
+                "b": second,
+                "kind": first.kind,
+                "rows": diff_rows(first, second),
+                "unified": diff_payload(first, second, request)["unified_diff"],
+            },
+        )
 
     @app.get("/a/{artifact_id}", response_class=HTMLResponse, include_in_schema=False)
     def view_artifact(artifact_id: str, request: Request):

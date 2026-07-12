@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Compare artifacts · {{ app_name }}{% endblock %}
+{% block body_class %}diff-page{% endblock %}
+{% block content %}
+<article class="diff-page-content">
+  <header class="artifact-head diff-head">
+    <div class="artifact-meta"><span class="kind">diff</span><span class="meta-sep">·</span><span>{{ kind }}</span></div>
+    <h1>Compare artifacts</h1>
+    <p class="lede"><a href="/a/{{ a.id }}">{{ a.title }}</a> <span class="muted">against</span> <a href="/a/{{ b.id }}">{{ b.title }}</a></p>
+    <div class="diff-actions" role="group" aria-label="Diff view options">
+      <button class="btn btn-ghost btn-sm is-active" type="button" data-diff-tab="split" aria-pressed="true">split</button>
+      <button class="btn btn-ghost btn-sm" type="button" data-diff-tab="unified" aria-pressed="false">unified</button>
+    </div>
+  </header>
+
+  <section class="diff-view diff-split" data-diff-view="split">
+    <div class="diff-columns-head"><span>← {{ a.title }}</span><span>{{ b.title }} →</span></div>
+    <div class="diff-table" role="table" aria-label="Side-by-side diff">
+      {% if not rows %}<p class="diff-empty">No differences.</p>{% endif %}
+      {% for row in rows %}
+      {% if row.hunk %}
+      <div class="diff-hunk" role="row"><span role="cell">{{ row.hunk }}</span></div>
+      {% else %}
+      <div class="diff-row diff-{{ row.type }}" role="row">
+        <span class="diff-no" role="cell">{{ row.old_no }}</span><code class="diff-code" role="cell">{{ row.old | safe }}</code>
+        <span class="diff-no" role="cell">{{ row.new_no }}</span><code class="diff-code" role="cell">{{ row.new | safe }}</code>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="diff-view diff-unified" data-diff-view="unified" hidden>
+    <pre class="diff-unified-body"><code>{{ unified }}</code></pre>
+    <p class="muted small diff-unified-note">Unified output matches the server-side API diff.</p>
+  </section>
+</article>
+{% endblock %}

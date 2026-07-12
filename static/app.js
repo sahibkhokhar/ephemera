@@ -181,6 +181,20 @@
     }
   }
 
+  function selectDiffView(tab) {
+    var selected = tab.dataset.diffTab;
+    var views = document.querySelectorAll("[data-diff-view]");
+    for (var i = 0; i < views.length; i++) {
+      views[i].toggleAttribute("hidden", views[i].dataset.diffView !== selected);
+    }
+    var tabs = document.querySelectorAll("[data-diff-tab]");
+    for (var j = 0; j < tabs.length; j++) {
+      var active = tabs[j] === tab;
+      tabs[j].classList.toggle("is-active", active);
+      tabs[j].setAttribute("aria-pressed", active ? "true" : "false");
+    }
+  }
+
   function handleAction(btn) {
     var action = btn.dataset.action;
     var root = btn.closest(".artifact");
@@ -234,6 +248,13 @@
     if (tabBtn) {
       event.preventDefault();
       selectView(tabBtn);
+      return;
+    }
+
+    var diffTab = event.target.closest("[data-diff-tab]");
+    if (diffTab) {
+      event.preventDefault();
+      selectDiffView(diffTab);
       return;
     }
 
