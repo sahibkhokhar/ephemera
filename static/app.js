@@ -89,6 +89,15 @@
     if (cursor < text.length) textEl.appendChild(document.createTextNode(text.slice(cursor)));
   }
 
+  function isVisibleLine(line) {
+    if (line.hidden) return false;
+    var body = line.closest(".code-body");
+    if (body && ((body.classList.contains("filter-error") && !line.classList.contains("ln-error")) ||
+        (body.classList.contains("filter-warn") && !line.classList.contains("ln-warn")) ||
+        (body.classList.contains("is-filtered") && !line.classList.contains("ln-issue")))) return false;
+    return !window.getComputedStyle || window.getComputedStyle(line).display !== "none";
+  }
+
   function initLogFilter(body) {
     var view = body.closest(".code-view");
     var filter = view && view.querySelector("[data-log-filter]");
@@ -101,6 +110,7 @@
     var lines = Array.prototype.slice.call(body.querySelectorAll(".ln"));
     var current = -1;
     var matchingLines = [];
+    var totalOccurrences = 0;
 
     function resetHighlights() {
       for (var i = 0; i < lines.length; i++) {
@@ -108,6 +118,7 @@
         var text = textEl.textContent;
         textEl.textContent = text;
         lines[i].classList.remove("ln-search-match");
+        lines[i].removeAttribute("aria-current");
       }
     }
 
@@ -125,7 +136,8 @@
       resetHighlights();
       matchingLines = [];
       current = -1;
-      if (!queryText) {
+      totalOccurrences = 0;
+      if (!queryText || query.type === "empty") {
         for (var i = 0; i < lines.length; i++) lines[i].hidden = false;
         updateStatus("all lines");
         return;
@@ -138,25 +150,28 @@
       for (var k = 0; k < lines.length; k++) {
         var textEl = lines[k].querySelector(".ln-text");
         var ranges = window.EphemeraLogFilter.matches(textEl.textContent, query);
-        lines[k].hidden = ranges.length === 0;
-        if (ranges.length) {
+        lines[k].hidden = false;
+        var visible = isVisibleLine(lines[k]);
+        lines[k].hidden = !ranges.length;
+        if (ranges.length && visible) {
           lines[k].classList.add("ln-search-match");
           highlight(textEl, ranges);
-          matchingLines.push(lines[k]);
+          matchingLines.push({ el: lines[k], ranges: ranges });
+          totalOccurrences += ranges.length;
         }
       }
-      var occurrences = 0;
-      for (var m = 0; m < matchingLines.length; m++) {
-        occurrences += window.EphemeraLogFilter.matches(matchingLines[m].textContent, query).length;
-      }
-      updateStatus(occurrences + " match" + (occurrences === 1 ? "" : "es") +
+      updateStatus(totalOccurrences + " match" + (totalOccurrences === 1 ? "" : "es") +
         " · " + matchingLines.length + " line" + (matchingLines.length === 1 ? "" : "s"));
     }
 
     function move(step) {
       if (!matchingLines.length) return;
       current = (current + step + matchingLines.length) % matchingLines.length;
-      jumpTo(matchingLines[current]);
+      for (var i = 0; i < matchingLines.length; i++) matchingLines[i].el.removeAttribute("aria-current");
+      matchingLines[current].el.setAttribute("aria-current", "true");
+      status.textContent = "match " + (current + 1) + " of " + matchingLines.length +
+        " · " + totalOccurrences + " total";
+      jumpTo(matchingLines[current].el);
     }
 
     input.addEventListener("input", apply);
@@ -173,6 +188,7 @@
         move(event.key === "n" ? 1 : -1);
       }
     });
+    body.addEventListener("log-filter-visibility-change", apply);
     apply();
   }
 
@@ -198,6 +214,7 @@
   }
 
   function jumpTo(el) {
+    if (!isVisibleLine(el)) return;
     el.scrollIntoView({ block: "center", behavior: "smooth" });
     el.classList.add("ln-flash");
     window.setTimeout(function () { el.classList.remove("ln-flash"); }, 1200);
@@ -217,12 +234,16 @@
       var chips = ribbon.querySelectorAll(".ichip");
       for (var i = 0; i < chips.length; i++) chips[i].setAttribute("aria-pressed", "false");
       body.classList.remove("filter-error", "filter-warn");
-      if (wasOn) return;                       // toggle off → show everything
-      chip.setAttribute("aria-pressed", "true");
-      body.classList.add(filterClass);
+      if (!wasOn) {
+        chip.setAttribute("aria-pressed", "true");
+        body.classList.add(filterClass);
+      }
+      body.dispatchEvent(new CustomEvent("log-filter-visibility-change"));
       // Land on the first matching issue so the filter feels like a jump too.
-      var first = body.querySelector(kind === "error" ? ".ln-error" : ".ln-warn");
-      if (first) jumpTo(first);
+      var candidates = body.querySelectorAll(kind === "error" ? ".ln-error" : ".ln-warn");
+      for (var i = 0; i < candidates.length; i++) {
+        if (isVisibleLine(candidates[i])) { jumpTo(candidates[i]); break; }
+      }
     });
     return chip;
   }

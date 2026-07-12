@@ -10,6 +10,7 @@
 
   function parse(query) {
     if (query.length >= 2 && query.charAt(0) === "/" && query.charAt(query.length - 1) === "/") {
+      if (query.length === 2) return { type: "empty", value: "" };
       try {
         return { type: "regex", value: new RegExp(query.slice(1, -1), "gi") };
       } catch (error) {
@@ -19,16 +20,34 @@
     return { type: "substring", value: query.toLocaleLowerCase() };
   }
 
+  function folded(text) {
+    var value = "";
+    var offsets = [];
+    var codePoints = Array.from(text);
+    var originalOffset = 0;
+    for (var i = 0; i < codePoints.length; i++) {
+      var point = codePoints[i];
+      var lower = point.toLocaleLowerCase();
+      value += lower;
+      for (var j = 0; j < lower.length; j++) {
+        offsets.push({ start: originalOffset, end: originalOffset + point.length });
+      }
+      originalOffset += point.length;
+    }
+    return { value: value, offsets: offsets };
+  }
+
   function matches(text, query) {
-    if (!query || query.type === "invalid") return [];
+    if (!query || query.type === "invalid" || query.type === "empty") return [];
     if (query.type === "substring") {
       var found = [];
       var start = 0;
-      var lower = text.toLocaleLowerCase();
-      while (query.value && start <= text.length) {
-        var index = lower.indexOf(query.value, start);
+      var lower = folded(text);
+      while (query.value && start <= lower.value.length) {
+        var index = lower.value.indexOf(query.value, start);
         if (index < 0) break;
-        found.push({ start: index, end: index + query.value.length });
+        var end = index + query.value.length;
+        found.push({ start: lower.offsets[index].start, end: lower.offsets[end - 1].end });
         start = index + Math.max(query.value.length, 1);
       }
       return found;
@@ -37,8 +56,8 @@
     var result = [];
     var match;
     while ((match = query.value.exec(text)) !== null) {
-      result.push({ start: match.index, end: match.index + match[0].length });
-      if (match[0] === "") query.value.lastIndex++;
+      if (match[0].length) result.push({ start: match.index, end: match.index + match[0].length });
+      else query.value.lastIndex++;
     }
     query.value.lastIndex = 0;
     return result;

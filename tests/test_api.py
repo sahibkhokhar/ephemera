@@ -443,6 +443,7 @@ def test_log_page_has_log_actions(client: TestClient):
     assert 'data-filter-input' in html
     assert 'data-filter-prev' in html and 'data-filter-next' in html
     assert 'data-filter-clear' in html
+    assert 'aria-live="polite"' in html
     assert '/static/log-filter.js' in client.get('/').text
 
 
