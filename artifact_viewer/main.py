@@ -72,6 +72,22 @@ def iso_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def diff_stats(unified: str) -> tuple[int, int]:
+    """Count changed content lines, excluding only the two file headers."""
+    lines = unified.splitlines()
+    body = lines[2:] if len(lines) >= 2 else []
+    additions = sum(1 for line in body if line.startswith("+"))
+    deletions = sum(1 for line in body if line.startswith("-"))
+    return additions, deletions
+
+
+def hunk_range(start: int, end: int) -> str:
+    """Format a zero-based half-open range using unified-diff conventions."""
+    count = end - start
+    first = start + 1 if count else start
+    return f"{first},{count}"
+
+
 def iso(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -273,13 +289,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 tofile=f"b/{second.id}",
             )
         )
+        additions, deletions = diff_stats(unified)
         return {
             "a": artifact_summary(first, request),
             "b": artifact_summary(second, request),
             "kind": first.kind,
             "changed": first_text != second_text,
-            "additions": sum(1 for line in unified.splitlines() if line.startswith("+") and not line.startswith("+++")),
-            "deletions": sum(1 for line in unified.splitlines() if line.startswith("-") and not line.startswith("---")),
+            "additions": additions,
+            "deletions": deletions,
             "diff": unified,
             "unified_diff": unified,
         }
@@ -292,7 +309,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         for group in matcher.get_grouped_opcodes(n=3):
             start_a, start_b = group[0][1], group[0][3]
             end_a, end_b = group[-1][4], group[-1][5]
-            rows.append({"hunk": f"@@ -{start_a + 1},{end_a - start_a} +{start_b + 1},{end_b - start_b} @@"})
+            rows.append({"hunk": f"@@ -{hunk_range(start_a, end_a)} +{hunk_range(start_b, end_b)} @@"})
             for tag, i1, i2, j1, j2 in group:
                 if tag == "equal":
                     for offset, line in enumerate(left[i1:i2]):

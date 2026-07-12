@@ -59,6 +59,33 @@ def test_diff_api_returns_unified_diff_for_same_kind(client: TestClient):
     assert "-removed" in body["diff"] and "+added" in body["unified_diff"]
 
 
+def test_diff_stats_count_content_lines_that_look_like_file_headers(client: TestClient):
+    left = create(client, content="---\nkeep\n").json()["id"]
+    right = create(client, content="+++\nkeep\n").json()["id"]
+    body = client.post("/api/artifacts/diff", json={"a": left, "b": right}).json()
+    assert body["additions"] == 1
+    assert body["deletions"] == 1
+    assert "\n----\n" in body["diff"]
+    assert "\n++++\n" in body["diff"]
+
+
+def test_diff_view_uses_zero_start_for_empty_hunk_side(client: TestClient):
+    left = create(client, content="").json()["id"]
+    right = create(client, content="new\n").json()["id"]
+    res = client.get(f"/diff?a={left}&b={right}")
+    assert res.status_code == 200
+    assert "@@ -0,0 +1,1 @@" in res.text
+
+
+def test_diff_view_escapes_untrusted_content(client: TestClient):
+    left = create(client, content="safe\n").json()["id"]
+    right = create(client, content="</code><script>alert(1)</script>\n").json()["id"]
+    res = client.get(f"/diff?a={left}&b={right}")
+    assert res.status_code == 200
+    assert "&lt;/code&gt;&lt;script&gt;alert(1)&lt;/script&gt;" in res.text
+    assert "<script>alert(1)</script>" not in res.text
+
+
 def test_diff_view_renders_split_and_unified_controls(client: TestClient):
     left = create(client, kind="json", content={"value": 1}).json()["id"]
     right = create(client, kind="json", content={"value": 2}).json()["id"]
