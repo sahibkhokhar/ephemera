@@ -154,7 +154,7 @@ code, pre { font-family: var(--mono); }
 .topnav { display: flex; gap: 16px; }
 .theme-toggle {
   display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0;
-  background: none; color: var(--text-faint); font: 12px var(--mono); cursor: pointer;
+  background: none; color: var(--text-soft); font: 12px var(--mono); cursor: pointer;
 }
 .theme-toggle:hover { color: var(--text); }
 .theme-toggle-icon { font-family: var(--sans); font-size: 15px; line-height: 1; }
@@ -250,7 +250,7 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
 .btn-icon { padding: 0 8px; }
 /* Primary is flat chalk: white fill, dark ink, no glow, no lift. */
 .btn-primary { background: var(--accent); color: var(--accent-ink); }
-.btn-primary:hover { background: var(--bg-elev); color: var(--accent-ink); }
+.btn-primary:hover { background: var(--accent-soft); color: var(--text); }
 .btn-ghost { background: transparent; border-color: var(--border-strong); color: var(--text-soft); }
 .btn-ghost:hover { border-color: var(--border-strong); color: var(--text); }
 .btn[aria-pressed="true"] { background: var(--surface-soft); border-color: var(--border-strong); color: var(--text); }

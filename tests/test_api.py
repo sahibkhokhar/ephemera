@@ -11,6 +11,9 @@ from artifact_viewer.examples import EXAMPLES
 from artifact_viewer.main import create_app
 
 
+ROOT = Path(__file__).resolve().parents[1]
+
+
 def make_client(tmp_path: Path, **overrides) -> TestClient:
     settings = Settings(db_path=tmp_path / "artifacts.db", base_url="http://lan-test", **overrides)
     return TestClient(create_app(settings))
@@ -129,6 +132,29 @@ def test_theme_assets_are_self_hosted_and_prepaint_safe(client: TestClient):
     assert theme.status_code == 200
     assert 'localStorage.getItem' in theme.text
     assert "script-src 'self'" in client.get("/").headers["content-security-policy"]
+
+
+def test_theme_controls_keep_contrast_and_follow_system_changes():
+    css = (ROOT / "static/styles.css").read_text()
+    app = (ROOT / "static/app.js").read_text()
+    assert ".btn-primary:hover { background: var(--accent-soft); color: var(--text); }" in css
+    assert ".theme-toggle" in css and "color: var(--text-soft)" in css
+    assert "addEventListener(\"change\", followSystemTheme)" in app
+    assert "if (savedTheme() !== null) return;" in app
+    assert "delete document.documentElement.dataset.theme;" in app
+
+    def luminance(color):
+        channels = [int(color[index:index + 2], 16) / 255 for index in (1, 3, 5)]
+        channels = [channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4 for channel in channels]
+        return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+
+    def contrast(foreground, background):
+        light, dark = sorted((luminance(foreground), luminance(background)), reverse=True)
+        return (light + 0.05) / (dark + 0.05)
+
+    assert contrast("#e8e8e8", "#1a1a1a") >= 4.5
+    assert contrast("#22221f", "#e7e7e2") >= 4.5
+    assert contrast("#5e5e58", "#f7f7f5") >= 4.5
 
 
 @pytest.mark.parametrize("path", ["/", "/api/docs", "/a/doesnotexist"])

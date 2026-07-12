@@ -81,6 +81,12 @@
     return document.documentElement.dataset.theme || preferredTheme();
   }
 
+  function savedTheme() {
+    var saved = null;
+    try { saved = window.localStorage.getItem(THEME_KEY); } catch (error) {}
+    return saved === "light" || saved === "dark" ? saved : null;
+  }
+
   function updateThemeControl() {
     var theme = currentTheme();
     var controls = document.querySelectorAll("[data-theme-toggle]");
@@ -98,6 +104,20 @@
     document.documentElement.dataset.theme = theme;
     try { window.localStorage.setItem(THEME_KEY, theme); } catch (error) {}
     updateThemeControl();
+  }
+
+  var colorScheme = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)");
+  function followSystemTheme() {
+    if (savedTheme() !== null) return;
+    delete document.documentElement.dataset.theme;
+    updateThemeControl();
+  }
+  if (colorScheme) {
+    if (colorScheme.addEventListener) {
+      colorScheme.addEventListener("change", followSystemTheme);
+    } else if (colorScheme.addListener) {
+      colorScheme.addListener(followSystemTheme);
+    }
   }
 
   // ---- log issues: ribbon + minimap --------------------------------------
