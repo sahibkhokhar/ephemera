@@ -285,6 +285,26 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
 }
 .code-stats { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
 .code-tools { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.log-filter { display: flex; align-items: center; gap: 3px; margin-left: auto; }
+.log-filter-input {
+  width: min(23vw, 190px); min-width: 110px; padding: 4px 7px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: var(--code-bg); color: var(--text); font: 11px var(--mono);
+}
+.log-filter-input::placeholder { color: var(--text-dim); }
+.log-filter-button, .log-filter-clear {
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: none; color: var(--text-soft); cursor: pointer; font: 11px var(--mono);
+  min-width: 25px; min-height: 25px;
+}
+.log-filter-button:hover:not(:disabled), .log-filter-clear:hover { color: var(--text); background: var(--surface-soft); }
+.log-filter-button:disabled { color: var(--text-dim); cursor: default; }
+.log-filter-clear { padding: 2px 5px; border-color: transparent; }
+.log-filter-status { min-width: 78px; color: var(--text-faint); font: 10px var(--mono); white-space: nowrap; }
 
 /* issue ribbon: error/warning counts that ARE the filter controls */
 .ribbon { display: flex; align-items: center; gap: 5px; }
@@ -428,6 +448,10 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
 .code-body.filter-error .ln:not(.ln-error) { display: none; }
 .code-body.filter-warn .ln:not(.ln-warn) { display: none; }
 .code-body.is-filtered .ln:not(.ln-issue) { display: none; }
+.code-body .ln[hidden] { display: none; }
+.log-match { background: #e8e8e8; color: #0d0d0d; border-radius: 2px; padding: 0 1px; }
+.ln-warn .log-match { background: var(--warn); }
+.ln-error .log-match { background: var(--error); }
 .ln-flash { animation: ln-flash 1.2s ease-out; }
 @keyframes ln-flash {
   0%, 30% { background: var(--border-strong); }

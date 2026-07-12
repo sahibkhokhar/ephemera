@@ -73,6 +73,125 @@
   var WARN_RE = /\bWARN(?:ING)?\b/i;
   var ERROR_RE = /\b(?:ERROR|FATAL|FAILED|FAILURE)\b/i;
 
+  function highlight(textEl, ranges) {
+    var text = textEl.textContent;
+    textEl.textContent = "";
+    var cursor = 0;
+    for (var i = 0; i < ranges.length; i++) {
+      var range = ranges[i];
+      if (range.start > cursor) textEl.appendChild(document.createTextNode(text.slice(cursor, range.start)));
+      var mark = document.createElement("mark");
+      mark.className = "log-match";
+      mark.textContent = text.slice(range.start, range.end);
+      textEl.appendChild(mark);
+      cursor = range.end;
+    }
+    if (cursor < text.length) textEl.appendChild(document.createTextNode(text.slice(cursor)));
+  }
+
+  function isVisibleLine(line) {
+    if (line.hidden) return false;
+    var body = line.closest(".code-body");
+    if (body && ((body.classList.contains("filter-error") && !line.classList.contains("ln-error")) ||
+        (body.classList.contains("filter-warn") && !line.classList.contains("ln-warn")) ||
+        (body.classList.contains("is-filtered") && !line.classList.contains("ln-issue")))) return false;
+    return !window.getComputedStyle || window.getComputedStyle(line).display !== "none";
+  }
+
+  function initLogFilter(body) {
+    var view = body.closest(".code-view");
+    var filter = view && view.querySelector("[data-log-filter]");
+    if (!filter || !window.EphemeraLogFilter) return;
+    var input = filter.querySelector("[data-filter-input]");
+    var status = filter.querySelector("[data-filter-status]");
+    var clear = filter.querySelector("[data-filter-clear]");
+    var previous = filter.querySelector("[data-filter-prev]");
+    var next = filter.querySelector("[data-filter-next]");
+    var lines = Array.prototype.slice.call(body.querySelectorAll(".ln"));
+    var current = -1;
+    var matchingLines = [];
+    var totalOccurrences = 0;
+
+    function resetHighlights() {
+      for (var i = 0; i < lines.length; i++) {
+        var textEl = lines[i].querySelector(".ln-text");
+        var text = textEl.textContent;
+        textEl.textContent = text;
+        lines[i].classList.remove("ln-search-match");
+        lines[i].removeAttribute("aria-current");
+      }
+    }
+
+    function updateStatus(label) {
+      status.textContent = label;
+      var enabled = matchingLines.length > 0;
+      previous.disabled = !enabled;
+      next.disabled = !enabled;
+      clear.hidden = !input.value;
+    }
+
+    function apply() {
+      var queryText = input.value;
+      var query = window.EphemeraLogFilter.parse(queryText);
+      resetHighlights();
+      matchingLines = [];
+      current = -1;
+      totalOccurrences = 0;
+      if (!queryText || query.type === "empty") {
+        for (var i = 0; i < lines.length; i++) lines[i].hidden = false;
+        updateStatus("all lines");
+        return;
+      }
+      if (query.type === "invalid") {
+        for (var j = 0; j < lines.length; j++) lines[j].hidden = false;
+        updateStatus(query.error);
+        return;
+      }
+      for (var k = 0; k < lines.length; k++) {
+        var textEl = lines[k].querySelector(".ln-text");
+        var ranges = window.EphemeraLogFilter.matches(textEl.textContent, query);
+        lines[k].hidden = false;
+        var visible = isVisibleLine(lines[k]);
+        lines[k].hidden = !ranges.length;
+        if (ranges.length && visible) {
+          lines[k].classList.add("ln-search-match");
+          highlight(textEl, ranges);
+          matchingLines.push({ el: lines[k], ranges: ranges });
+          totalOccurrences += ranges.length;
+        }
+      }
+      updateStatus(totalOccurrences + " match" + (totalOccurrences === 1 ? "" : "es") +
+        " · " + matchingLines.length + " line" + (matchingLines.length === 1 ? "" : "s"));
+    }
+
+    function move(step) {
+      if (!matchingLines.length) return;
+      current = (current + step + matchingLines.length) % matchingLines.length;
+      for (var i = 0; i < matchingLines.length; i++) matchingLines[i].el.removeAttribute("aria-current");
+      matchingLines[current].el.setAttribute("aria-current", "true");
+      status.textContent = "match " + (current + 1) + " of " + matchingLines.length +
+        " · " + totalOccurrences + " total";
+      jumpTo(matchingLines[current].el);
+    }
+
+    input.addEventListener("input", apply);
+    previous.addEventListener("click", function () { move(-1); });
+    next.addEventListener("click", function () { move(1); });
+    clear.addEventListener("click", function () {
+      input.value = "";
+      input.focus();
+      apply();
+    });
+    body.addEventListener("keydown", function (event) {
+      if ((event.key === "n" || event.key === "N") && document.activeElement !== input && matchingLines.length) {
+        event.preventDefault();
+        move(event.key === "n" ? 1 : -1);
+      }
+    });
+    body.addEventListener("log-filter-visibility-change", apply);
+    apply();
+  }
+
   // Tag each WARN/ERROR line and collect their positions for ribbon + minimap.
   function scanLog(body) {
     var lines = body.querySelectorAll(".ln");
@@ -95,6 +214,7 @@
   }
 
   function jumpTo(el) {
+    if (!isVisibleLine(el)) return;
     el.scrollIntoView({ block: "center", behavior: "smooth" });
     el.classList.add("ln-flash");
     window.setTimeout(function () { el.classList.remove("ln-flash"); }, 1200);
@@ -114,12 +234,16 @@
       var chips = ribbon.querySelectorAll(".ichip");
       for (var i = 0; i < chips.length; i++) chips[i].setAttribute("aria-pressed", "false");
       body.classList.remove("filter-error", "filter-warn");
-      if (wasOn) return;                       // toggle off → show everything
-      chip.setAttribute("aria-pressed", "true");
-      body.classList.add(filterClass);
+      if (!wasOn) {
+        chip.setAttribute("aria-pressed", "true");
+        body.classList.add(filterClass);
+      }
+      body.dispatchEvent(new CustomEvent("log-filter-visibility-change"));
       // Land on the first matching issue so the filter feels like a jump too.
-      var first = body.querySelector(kind === "error" ? ".ln-error" : ".ln-warn");
-      if (first) jumpTo(first);
+      var candidates = body.querySelectorAll(kind === "error" ? ".ln-error" : ".ln-warn");
+      for (var i = 0; i < candidates.length; i++) {
+        if (isVisibleLine(candidates[i])) { jumpTo(candidates[i]); break; }
+      }
     });
     return chip;
   }
@@ -264,6 +388,7 @@
     for (var i = 0; i < logs.length; i++) {
       var body = logs[i];
       var scan = scanLog(body);
+      initLogFilter(body);
       var pane = body.closest(".code-pane") || body.parentNode;
       var view = body.closest(".code-view");
       var ribbon = view && view.querySelector("[data-ribbon]");
