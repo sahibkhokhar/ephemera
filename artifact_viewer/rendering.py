@@ -74,7 +74,7 @@ def highlight_line(line: str, kind: str) -> str:
     """Escape an untrusted source line and add small, dependency-free tokens."""
     escaped = html.escape(line, quote=False)
     if kind == "json":
-        pattern = re.compile(r'".*?"(?=\s*:)|".*?"|\b(?:true|false|null)\b|-?\b\d+(?:\.\d+)?\b')
+        pattern = re.compile(r'".*?"\s*:|".*?"|\b(?:true|false|null)\b|-?\b\d+(?:\.\d+)?\b')
 
         def token(match: re.Match[str]) -> str:
             value = match.group(0)

@@ -93,7 +93,8 @@ def test_diff_view_renders_split_and_unified_controls(client: TestClient):
     assert res.status_code == 200
     assert 'data-diff-tab="split"' in res.text
     assert 'data-diff-tab="unified"' in res.text
-    assert "diff-token-key" in res.text
+    assert '<span class="diff-token-key">"value":</span>' in res.text
+    assert '<span class="diff-token-string">"value"</span>' not in res.text
     assert "script-src 'self'" in res.headers["content-security-policy"]
 
 
