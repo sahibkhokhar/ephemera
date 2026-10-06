@@ -9,7 +9,7 @@ Post a payload, get back a short-lived URL, and open it in a clean browser view.
 - Temporary share URLs for logs, text, JSON, markdown, images, and HTML-style reports
 - JSON API plus a raw file-upload endpoint, so agents and CI can stream a file straight in without JSON-wrapping it
 - Server-rendered instance dashboard with recent artifacts, copy buttons, downloads, and mobile-friendly pages
-- Log viewer with line numbers, wrapping, issue highlighting, filtering, and jump-to-first-issue
+- Log viewer with line numbers, wrapping, issue highlighting, live text or `/regex/` filtering, and match navigation
 - Pretty JSON rendering and raw JSON endpoints for automation
 - Markdown rendering with tables, fenced code blocks, and task lists
 - Sanitized report HTML with a strict Content Security Policy
@@ -196,6 +196,13 @@ My instance:
 Works in Hermes, Cursor, OpenClaw, Claude Code, and other [Agent Skills](https://agentskills.io)-compatible harnesses. See [`skills/ephemera/SKILL.md`](skills/ephemera/SKILL.md).
 
 ## Development
+
+In log views, enter a case-sensitive substring or a JavaScript regex enclosed in
+slashes (for example, `/WARN|ERROR/`). The count shows visible lines out of the
+original total; severity chips narrow the results further. Previous and Next
+visit each highlighted match and wrap at either end. The `n` and `N` shortcuts
+do the same outside text fields. Clear resets both text and severity filters.
+Invalid regexes show a message and leave lines visible under the severity filter.
 
 Run the test suite:
 

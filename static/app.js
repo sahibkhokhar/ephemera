@@ -114,12 +114,13 @@
       var chips = ribbon.querySelectorAll(".ichip");
       for (var i = 0; i < chips.length; i++) chips[i].setAttribute("aria-pressed", "false");
       body.classList.remove("filter-error", "filter-warn");
+      if (!wasOn) body.classList.add(filterClass);
+      body.dispatchEvent(new Event("logfilterchange"));
       if (wasOn) return;                       // toggle off → show everything
       chip.setAttribute("aria-pressed", "true");
-      body.classList.add(filterClass);
       // Land on the first matching issue so the filter feels like a jump too.
-      var first = body.querySelector(kind === "error" ? ".ln-error" : ".ln-warn");
-      if (first) jumpTo(first);
+      var first = body.querySelector(kind === "error" ? ".ln-error:not([hidden])" : ".ln-warn:not([hidden])");
+      if (first && !first.hidden) jumpTo(first);
     });
     return chip;
   }
@@ -145,6 +146,116 @@
   }
 
   // ---- view controls -----------------------------------------------------
+
+  function buildLogFilter(body, view) {
+    var lines = Array.from(body.querySelectorAll(".ln"));
+    var texts = lines.map(function (line, index) {
+      line.querySelector(".ln-gutter").dataset.line = index + 1;
+      return line.querySelector(".ln-text").textContent;
+    });
+    var bar = document.createElement("div");
+    bar.className = "log-filter";
+    // Only static UI markup; log content is always inserted as text nodes.
+    bar.innerHTML = '<label>Filter logs <input type="text" placeholder="Text or /regex/" aria-label="Filter log lines" spellcheck="false"></label>' +
+      '<button type="button" class="copy-btn" data-prev>Previous</button>' +
+      '<button type="button" class="copy-btn" data-next>Next</button>' +
+      '<button type="button" class="copy-btn" data-clear>Clear</button>' +
+      '<span class="log-filter-status" role="status" aria-live="polite"></span>' +
+      '<span class="log-filter-help">Jump: n / N (outside text fields)</span>';
+    view.insertBefore(bar, body.closest(".code-pane"));
+    var input = bar.querySelector("input");
+    var status = bar.querySelector("[role=status]");
+    var prev = bar.querySelector("[data-prev]");
+    var next = bar.querySelector("[data-next]");
+    var matches = [];
+    var current = -1;
+
+    function update() {
+      var query = input.value;
+      var regex = null;
+      var invalid = false;
+      if (query.length >= 2 && query[0] === "/" && query[query.length - 1] === "/") {
+        try { regex = new RegExp(query.slice(1, -1), "g"); }
+        catch (err) { invalid = true; }
+      }
+      input.setAttribute("aria-invalid", invalid ? "true" : "false");
+      matches = [];
+      current = -1;
+      var visible = 0;
+      lines.forEach(function (line, index) {
+        var text = texts[index];
+        var target = line.querySelector(".ln-text");
+        target.textContent = text;
+        var ranges = [];
+        if (regex) {
+          regex.lastIndex = 0;
+          var match;
+          while ((match = regex.exec(text)) !== null) {
+            ranges.push([match.index, match.index + match[0].length]);
+            // Empty matches must advance to avoid an infinite loop.
+            if (!match[0].length) regex.lastIndex++;
+          }
+        } else if (query && !invalid) {
+          var start = 0;
+          var at;
+          while ((at = text.indexOf(query, start)) !== -1) {
+            ranges.push([at, at + query.length]);
+            start = at + query.length;
+          }
+        }
+        var severity = (!body.classList.contains("filter-error") || line.classList.contains("ln-error")) &&
+          (!body.classList.contains("filter-warn") || line.classList.contains("ln-warn"));
+        line.hidden = !severity || (!invalid && !!query && !ranges.length);
+        if (!line.hidden) visible++;
+        if (!line.hidden && ranges.length) {
+          target.textContent = "";
+          var offset = 0;
+          ranges.forEach(function (range) {
+            target.appendChild(document.createTextNode(text.slice(offset, range[0])));
+            var mark = document.createElement("mark");
+            mark.className = "log-match";
+            mark.textContent = text.slice(range[0], range[1]);
+            target.appendChild(mark);
+            matches.push(mark);
+            offset = range[1];
+          });
+          target.appendChild(document.createTextNode(text.slice(offset)));
+        }
+      });
+      status.textContent = invalid ? "Invalid regex — showing unfiltered lines" : visible + " of " + lines.length + " lines";
+      prev.disabled = next.disabled = !matches.length;
+    }
+
+    function navigate(step) {
+      if (!matches.length) return;
+      if (current >= 0) matches[current].classList.remove("is-current");
+      current = current < 0 ? (step > 0 ? 0 : matches.length - 1) :
+        (current + step + matches.length) % matches.length;
+      matches[current].classList.add("is-current");
+      matches[current].scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+    }
+    input.addEventListener("input", update);
+    body.addEventListener("logfilterchange", update);
+    prev.addEventListener("click", function () { navigate(-1); });
+    next.addEventListener("click", function () { navigate(1); });
+    bar.querySelector("[data-clear]").addEventListener("click", function () {
+      input.value = "";
+      body.classList.remove("filter-error", "filter-warn");
+      view.querySelectorAll(".ichip").forEach(function (chip) { chip.setAttribute("aria-pressed", "false"); });
+      update();
+      input.focus();
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.defaultPrevented || event.isComposing || event.ctrlKey || event.metaKey || event.altKey ||
+          event.target.closest("input, textarea, select, [contenteditable]:not([contenteditable=false])") ||
+          view.hidden || !matches.length) return;
+      if (event.key === "n" || event.key === "N") {
+        event.preventDefault();
+        navigate(event.key === "n" ? 1 : -1);
+      }
+    });
+    update();
+  }
 
   function setPressed(btn, on) {
     if (btn.hasAttribute("aria-pressed")) {
@@ -268,6 +379,7 @@
       var view = body.closest(".code-view");
       var ribbon = view && view.querySelector("[data-ribbon]");
       if (ribbon) buildRibbon(ribbon, body, scan);
+      if (view) buildLogFilter(body, view);
       var map = pane.querySelector("[data-minimap]");
       if (map) buildMinimap(map, scan);
     }
