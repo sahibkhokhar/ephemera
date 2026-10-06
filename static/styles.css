@@ -429,6 +429,17 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
 .code-body.filter-warn .ln:not(.ln-warn) { display: none; }
 .code-body.is-filtered .ln:not(.ln-issue) { display: none; }
 .ln-flash { animation: ln-flash 1.2s ease-out; }
+.code-body[data-log] .ln[hidden] { display: none; }
+.numbered .ln-gutter[data-line]::before { content: attr(data-line); }
+.log-filter { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+.log-filter label { display: flex; align-items: center; flex: 1 1 260px; gap: 8px; font: 12px var(--mono); }
+.log-filter input { min-width: 0; flex: 1; padding: 6px 8px; background: var(--bg); color: var(--text); border: 1px solid var(--border-strong); border-radius: 4px; font: inherit; }
+.log-filter input[aria-invalid="true"] { border-color: var(--error); }
+.log-filter-status, .log-filter-help { font: 11px var(--mono); color: var(--text-soft); }
+.log-filter .copy-btn:disabled { opacity: .4; cursor: default; }
+.log-match { background: #f0cf65; color: #171717; border-radius: 2px; }
+.log-match:empty { display: inline-block; width: 2px; height: 1em; vertical-align: text-bottom; }
+.log-match.is-current { outline: 2px solid var(--text); outline-offset: 2px; }
 @keyframes ln-flash {
   0%, 30% { background: var(--border-strong); }
   100% { background: transparent; }
