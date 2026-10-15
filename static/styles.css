@@ -67,8 +67,46 @@
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
+/* The OS preference is the default. A data-theme attribute is added by the
+   pre-paint bootstrap when a user has made an explicit choice. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f7f7f5;
+    --bg-elev: #ffffff;
+    --surface: #ffffff;
+    --surface-soft: #eeeeeb;
+    --border: #d8d8d2;
+    --border-strong: #b8b8b0;
+    --text: #22221f;
+    --text-soft: #5e5e58;
+    --text-faint: #777770;
+    --text-dim: #9b9b92;
+    --accent: #22221f;
+    --accent-text: #22221f;
+    --accent-ink: #ffffff;
+    --accent-soft: #e7e7e2;
+    --accent-line: #b8b8b0;
+    --code-bg: #ecece8;
+    --code-text: #30302c;
+    --code-gutter: #97978f;
+    --code-border: #d0d0c8;
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #f7f7f5; --bg-elev: #ffffff; --surface: #ffffff; --surface-soft: #eeeeeb;
+  --border: #d8d8d2; --border-strong: #b8b8b0; --text: #22221f; --text-soft: #5e5e58;
+  --text-faint: #777770; --text-dim: #9b9b92; --accent: #22221f; --accent-text: #22221f;
+  --accent-ink: #ffffff; --accent-soft: #e7e7e2; --accent-line: #b8b8b0;
+  --code-bg: #ecece8; --code-text: #30302c; --code-gutter: #97978f; --code-border: #d0d0c8;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+}
+
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
+html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; color-scheme: dark light; }
+html[data-theme="dark"] { color-scheme: dark; }
+html[data-theme="light"] { color-scheme: light; }
 
 body {
   margin: 0;
@@ -114,6 +152,21 @@ code, pre { font-family: var(--mono); }
 .brand-context { color: var(--text-faint); font-weight: 400; align-self: center; }
 .topbar-brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .topnav { display: flex; gap: 16px; }
+.theme-toggle {
+  display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0;
+  background: none; color: var(--text-soft); font: 12px var(--mono); cursor: pointer;
+}
+.theme-toggle:hover { color: var(--text); }
+.theme-toggle-icon { font-family: var(--sans); font-size: 15px; line-height: 1; }
+/* Match the palette before deferred app.js initializes the control. Hidden
+   labels also stay out of the button's accessible name. */
+[data-theme-label="dark"] { display: none; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) [data-theme-label="light"] { display: none; }
+  :root:not([data-theme="dark"]) [data-theme-label="dark"] { display: inline; }
+}
+:root[data-theme="light"] [data-theme-label="light"] { display: none; }
+:root[data-theme="light"] [data-theme-label="dark"] { display: inline; }
 .topnav a { color: var(--text-faint); font-family: var(--mono); font-size: 12px; text-transform: lowercase; }
 .topnav a:hover { color: var(--text); text-decoration: none; }
 .ext-icon { font-family: var(--sans); font-style: normal; }
@@ -137,7 +190,7 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
 /* ---- hero ------------------------------------------------------------ */
 
 .hero { padding: 12px 0 8px; }
-.hero h1 { font-size: clamp(2rem, 4.4vw, 2.9rem); margin: 0 0 16px; max-width: 18ch; color: #f4f6fa; letter-spacing: -0.02em; }
+.hero h1 { font-size: clamp(2rem, 4.4vw, 2.9rem); margin: 0 0 16px; max-width: 18ch; color: var(--text); letter-spacing: -0.02em; }
 .lede { font-size: 1.05rem; line-height: 1.55; color: var(--text-soft); margin: 0; max-width: 62ch; }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
 .kind-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 28px 0 0; padding: 0; list-style: none; }
@@ -206,9 +259,9 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
 .btn-icon { padding: 0 8px; }
 /* Primary is flat chalk: white fill, dark ink, no glow, no lift. */
 .btn-primary { background: var(--accent); color: var(--accent-ink); }
-.btn-primary:hover { background: #ffffff; color: var(--accent-ink); }
+.btn-primary:hover { background: var(--accent-soft); color: var(--text); }
 .btn-ghost { background: transparent; border-color: var(--border-strong); color: var(--text-soft); }
-.btn-ghost:hover { border-color: #3d3d3d; color: var(--text); }
+.btn-ghost:hover { border-color: var(--border-strong); color: var(--text); }
 .btn[aria-pressed="true"] { background: var(--surface-soft); border-color: var(--border-strong); color: var(--text); }
 
 /* ---- cards ----------------------------------------------------------- */
@@ -547,7 +600,7 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
 .meta-expiry.is-expired { color: var(--text-dim); }
 .artifact-head h1 {
   font-family: var(--display); font-size: clamp(1.45rem, 3vw, 1.85rem);
-  margin: 0; color: #f4f6fa; letter-spacing: -0.02em; overflow-wrap: anywhere;
+  margin: 0; color: var(--text); letter-spacing: -0.02em; overflow-wrap: anywhere;
 }
 
 /* One flat action row — no labelled boxes. Primary + ghost + overflow. */
@@ -602,12 +655,12 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
 }
 
 /* prose: markdown + report */
-.prose { padding: 26px 30px; color: #c7cdd8; }
+.prose { padding: 26px 30px; color: var(--text); }
 .prose > :first-child { margin-top: 0; }
 .prose > :last-child { margin-bottom: 0; }
 .prose { max-width: none; }
 .prose p, .prose ul, .prose ol, .prose blockquote, .prose table, .prose pre { margin: 0 0 1em; }
-.prose h1, .prose h2, .prose h3, .prose h4 { margin: 1.6em 0 0.5em; line-height: 1.25; color: #f4f6fa; }
+.prose h1, .prose h2, .prose h3, .prose h4 { margin: 1.6em 0 0.5em; line-height: 1.25; color: var(--text); }
 .prose h1 { font-size: 1.6rem; }
 .prose h2 { font-size: 1.28rem; padding-bottom: 0.25em; border-bottom: 1px solid var(--border); }
 .prose h3 { font-size: 1.1rem; }
@@ -656,7 +709,7 @@ main.wrap { padding-top: 40px; padding-bottom: 56px; display: flex; flex-directi
 
 .error-page { padding: 64px 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .error-code { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--accent-text); margin: 0; }
-.error-page h1 { font-size: 2rem; margin: 0; color: #f4f6fa; }
+.error-page h1 { font-size: 2rem; margin: 0; color: var(--text); }
 .error-page .lede { margin: 0 0 18px; }
 
 /* ---- responsive ------------------------------------------------------ */

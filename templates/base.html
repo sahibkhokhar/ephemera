@@ -3,10 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="dark light">
   <meta name="robots" content="noindex, nofollow">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <script src="/static/theme.js"></script>
   <link rel="stylesheet" href="/static/styles.css">
   <script src="/static/app.js" defer></script>
   <script src="/static/ttl-countdown.js" defer></script>
@@ -30,6 +31,11 @@
       </a>
       <nav class="topnav">
         <a href="/api/docs">api</a>
+        <button class="theme-toggle" type="button" data-theme-toggle>
+          <span class="theme-toggle-icon" aria-hidden="true">◐</span>
+          <span data-theme-label="light">light mode</span>
+          <span data-theme-label="dark">dark mode</span>
+        </button>
         <a class="topnav-accent" href="https://github.com/sahibkhokhar/ephemera" target="_blank" rel="noopener noreferrer">github <span class="ext-icon">→</span></a>
       </nav>
     </div>
