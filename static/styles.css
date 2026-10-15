@@ -158,6 +158,15 @@ code, pre { font-family: var(--mono); }
 }
 .theme-toggle:hover { color: var(--text); }
 .theme-toggle-icon { font-family: var(--sans); font-size: 15px; line-height: 1; }
+/* Match the palette before deferred app.js initializes the control. Hidden
+   labels also stay out of the button's accessible name. */
+[data-theme-label="dark"] { display: none; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) [data-theme-label="light"] { display: none; }
+  :root:not([data-theme="dark"]) [data-theme-label="dark"] { display: inline; }
+}
+:root[data-theme="light"] [data-theme-label="light"] { display: none; }
+:root[data-theme="light"] [data-theme-label="dark"] { display: inline; }
 .topnav a { color: var(--text-faint); font-family: var(--mono); font-size: 12px; text-transform: lowercase; }
 .topnav a:hover { color: var(--text); text-decoration: none; }
 .ext-icon { font-family: var(--sans); font-style: normal; }

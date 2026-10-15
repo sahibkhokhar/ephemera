@@ -95,8 +95,6 @@
       var next = theme === "dark" ? "light" : "dark";
       control.setAttribute("aria-pressed", theme === "light" ? "true" : "false");
       control.setAttribute("aria-label", "Switch to " + next + " mode");
-      var label = control.querySelector("[data-theme-label]");
-      if (label) label.textContent = next + " mode";
     }
   }
 
